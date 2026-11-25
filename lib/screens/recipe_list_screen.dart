@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
+import '../widgets/skeleton.dart';
 import 'package:go_router/go_router.dart';
 import '../models/recipe.dart';
 import '../services/auth_service.dart';
 import '../services/recipe_service.dart';
+import '../theme/app_theme.dart';
+import '../widgets/app_shell.dart';
+import '../widgets/common.dart';
 
-const _foodEmojis = ['🥘','🍝','🥗','🍜','🥩','🍰','🥪','🍛','🫕','🥙','🍲','🧁'];
-
-String _recipeEmoji(String title) {
-  final idx = title.codeUnits.fold(0, (a, c) => a + c).abs() % _foodEmojis.length;
-  return _foodEmojis[idx];
-}
+enum _Sort { newest, az, quickest }
 
 class RecipeListScreen extends StatefulWidget {
   const RecipeListScreen({super.key});
@@ -19,54 +18,22 @@ class RecipeListScreen extends StatefulWidget {
 }
 
 class _RecipeListScreenState extends State<RecipeListScreen> {
-  final _searchController = TextEditingController();
   final _recipeService = RecipeService();
+  final _searchController = TextEditingController();
+
   List<Recipe> _recipes = [];
-  bool _loading = false;
+  final Set<int> _hidden =
+      {}; // swiped away, waiting for the Undo window to pass
+  bool _loading = true;
   String? _error;
+  String _query = '';
+  bool _quickOnly = false;
+  _Sort _sort = _Sort.newest;
 
   @override
   void initState() {
     super.initState();
-    _loadRecipes();
-  }
-
-  Future<void> _loadRecipes() async {
-    setState(() { _loading = true; _error = null; });
-    try {
-      final data = await _recipeService.getAll(title: _searchController.text.trim());
-      setState(() { _recipes = data; _loading = false; });
-    } catch (e) {
-      setState(() { _error = 'Failed to load recipes.'; _loading = false; });
-    }
-  }
-
-  Future<void> _deleteRecipe(int id) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Delete Recipe'),
-        content: const Text('Are you sure you want to delete this recipe?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-    try {
-      await _recipeService.delete(id);
-      setState(() { _recipes = _recipes.where((r) => r.id != id).toList(); });
-    } catch (_) {
-      if (mounted) {
-        setState(() { _error = 'Failed to delete recipe.'; });
-      }
-    }
-  }
-
-  Future<void> _logout() async {
-    await AuthService().logout();
-    if (mounted) context.go('/login');
+    _load();
   }
 
   @override
@@ -75,91 +42,283 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
     super.dispose();
   }
 
+  /// Loads all recipes. With [quiet], the current list stays on screen meanwhile.
+  Future<void> _load({bool quiet = false}) async {
+    if (!quiet) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
+    try {
+      final data = await _recipeService.getAll();
+      if (!mounted) return;
+      setState(() {
+        _recipes = data;
+        _loading = false;
+        _error = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        if (!quiet || _recipes.isEmpty) _error = errorText(e);
+      });
+      if (quiet) showMessage(context, errorText(e));
+    }
+  }
+
+  List<Recipe> get _visible {
+    final q = _query.trim().toLowerCase();
+    final list = _recipes.where((r) {
+      if (_hidden.contains(r.id)) return false;
+      if (_quickOnly) {
+        final total = totalMinutes(r);
+        if (total == null || total > 30) return false;
+      }
+      if (q.isEmpty) return true;
+      return r.title.toLowerCase().contains(q) ||
+          (r.description?.toLowerCase().contains(q) ?? false) ||
+          (r.ingredients?.any((i) => i.name.toLowerCase().contains(q)) ??
+              false);
+    }).toList();
+    switch (_sort) {
+      case _Sort.newest:
+        list.sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
+      case _Sort.az:
+        list.sort(
+          (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+        );
+      case _Sort.quickest:
+        list.sort(
+          (a, b) => (totalMinutes(a) ?? 1 << 20).compareTo(
+            totalMinutes(b) ?? 1 << 20,
+          ),
+        );
+    }
+    return list;
+  }
+
+  Future<void> _open(Recipe r) async {
+    await context.push('/recipes/${r.id}');
+    _load(quiet: true);
+  }
+
+  Future<void> _create() async {
+    final id = await context.push<int>('/recipes/new');
+    await _load(quiet: true);
+    if (id != null && mounted) {
+      await context.push('/recipes/$id');
+      _load(quiet: true);
+    }
+  }
+
+  /// Hides the recipe at once and deletes it for real unless Undo is tapped.
+  void _swipeDelete(Recipe r) {
+    final id = r.id!;
+    setState(() => _hidden.add(id));
+    final messenger = ScaffoldMessenger.of(context)..hideCurrentSnackBar();
+    messenger
+        .showSnackBar(
+          SnackBar(
+            content: Text('Deleted "${r.title}"'),
+            action: SnackBarAction(label: 'Undo', onPressed: () {}),
+            duration: const Duration(seconds: 5),
+          ),
+        )
+        .closed
+        .then((reason) async {
+          if (reason == SnackBarClosedReason.action) {
+            if (mounted) setState(() => _hidden.remove(id));
+            return;
+          }
+          try {
+            await _recipeService.delete(id);
+            if (mounted) {
+              setState(() {
+                _recipes.removeWhere((x) => x.id == id);
+                _hidden.remove(id);
+              });
+            }
+          } catch (e) {
+            if (!mounted) return;
+            setState(() => _hidden.remove(id));
+            showMessage(context, errorText(e));
+          }
+        });
+  }
+
+  String get _greeting {
+    final h = DateTime.now().hour;
+    final part = h < 12
+        ? 'Good morning'
+        : (h < 18 ? 'Good afternoon' : 'Good evening');
+    final name = AuthService().username;
+    return (name == null || name.contains('@'))
+        ? part
+        : '$part, ${name.split(' ').first}';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Recipes'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Logout',
-            onPressed: _logout,
-          ),
-        ],
+      floatingActionButton: _recipes.isEmpty && !_loading
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: _create,
+              icon: const Icon(Icons.add),
+              label: const Text('New recipe'),
+            ),
+      body: SafeArea(
+        bottom: false,
+        child: _loading
+            ? const ListPageSkeleton()
+            : _error != null
+            ? ErrorState(message: _error!, onRetry: _load)
+            : _recipes.isEmpty
+            ? EmptyState(
+                icon: Icons.menu_book_outlined,
+                title: 'Add your first recipe',
+                message:
+                    'Save the dishes you love, with ingredients and steps, and find them in seconds.',
+                actionLabel: 'New recipe',
+                onAction: _create,
+              )
+            : RefreshIndicator(
+                onRefresh: () => _load(quiet: true),
+                child: PageWidth(maxWidth: 1100, child: _list(context)),
+              ),
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: const InputDecoration(
-                      hintText: 'Search recipes...',
-                      prefixIcon: Icon(Icons.search),
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    onSubmitted: (_) => _loadRecipes(),
+    );
+  }
+
+  Widget _list(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final c = Theme.of(context).colorScheme;
+    final visible = _visible;
+
+    return LayoutBuilder(
+      builder: (context, constraints) => CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.lg, Gap.lg, 0),
+            sliver: SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _greeting,
+                    style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),
                   ),
-                ),
-                const SizedBox(width: 8),
-                FilledButton(onPressed: _loadRecipes, child: const Text('Search')),
-              ],
-            ),
-          ),
-          if (_error != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-            ),
-          Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _recipes.isEmpty
-                    ? const Center(child: Text('No recipes found.'))
-                    : ListView.builder(
-                        itemCount: _recipes.length,
-                        itemBuilder: (_, i) {
-                          final recipe = _recipes[i];
-                          return ListTile(
-                            leading: Text(
-                              _recipeEmoji(recipe.title),
-                              style: const TextStyle(fontSize: 28),
-                            ),
-                            title: Text(recipe.title),
-                            subtitle: recipe.description != null
-                                ? Text(recipe.description!, maxLines: 1, overflow: TextOverflow.ellipsis)
-                                : null,
-                            trailing: IconButton(
-                              icon: const Icon(Icons.delete_outline),
-                              onPressed: () => _deleteRecipe(recipe.id!),
-                            ),
-                            onTap: () => context.push('/recipes/${recipe.id}'),
-                          );
-                        },
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text('Your recipes', style: t.headlineMedium),
                       ),
+                      PopupMenuButton<_Sort>(
+                        tooltip: 'Sort',
+                        icon: const Icon(Icons.sort),
+                        initialValue: _sort,
+                        onSelected: (s) => setState(() => _sort = s),
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(
+                            value: _Sort.newest,
+                            child: Text('Newest first'),
+                          ),
+                          PopupMenuItem(value: _Sort.az, child: Text('A to Z')),
+                          PopupMenuItem(
+                            value: _Sort.quickest,
+                            child: Text('Quickest first'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: Gap.md),
+                  TextField(
+                    controller: _searchController,
+                    onChanged: (v) => setState(() => _query = v),
+                    textInputAction: TextInputAction.search,
+                    decoration: InputDecoration(
+                      hintText:
+                          'Search ${_recipes.length} recipes or ingredients',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: _query.isEmpty
+                          ? null
+                          : IconButton(
+                              tooltip: 'Clear search',
+                              icon: const Icon(Icons.close),
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() => _query = '');
+                              },
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: Gap.md),
+                  Wrap(
+                    spacing: Gap.sm,
+                    children: [
+                      ChoiceChip(
+                        label: const Text('All'),
+                        selected: !_quickOnly,
+                        onSelected: (_) => setState(() => _quickOnly = false),
+                      ),
+                      ChoiceChip(
+                        avatar: Icon(
+                          Icons.bolt,
+                          size: 18,
+                          color: _quickOnly ? c.onPrimary : c.secondary,
+                        ),
+                        label: const Text('Under 30 min'),
+                        selected: _quickOnly,
+                        onSelected: (_) =>
+                            setState(() => _quickOnly = !_quickOnly),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: Gap.md),
+                ],
+              ),
+            ),
           ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          await context.push('/recipes/new');
-          _loadRecipes();
-        },
-        child: const Icon(Icons.add),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 0,
-        onTap: (i) {
-          if (i == 1) context.go('/groups');
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.restaurant_menu), label: 'Recipes'),
-          BottomNavigationBarItem(icon: Icon(Icons.folder_open), label: 'Collections'),
+          if (visible.isEmpty)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: EmptyState(
+                icon: Icons.search_off,
+                title: 'No matches',
+                message: 'Try another word, or show all recipes.',
+                actionLabel: 'Show all',
+                onAction: () {
+                  _searchController.clear();
+                  setState(() {
+                    _query = '';
+                    _quickOnly = false;
+                  });
+                },
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(Gap.lg, 0, Gap.lg, 96),
+              sliver: SliverCardGrid(
+                columns: cardColumns(constraints.maxWidth),
+                itemCount: visible.length,
+                itemBuilder: (_, i) {
+                  final r = visible[i];
+                  return Dismissible(
+                    key: ValueKey('recipe-${r.id}'),
+                    direction: DismissDirection.endToStart,
+                    background: const SwipeDeleteBackground(),
+                    onDismissed: (_) => _swipeDelete(r),
+                    child: RecipeCard(recipe: r, onTap: () => _open(r)),
+                  );
+                },
+              ),
+            ),
         ],
       ),
     );

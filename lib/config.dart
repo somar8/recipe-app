@@ -6,6 +6,9 @@
 /// The publishable key is meant to be public: the database's access rules
 /// protect the data. Never put the secret (service role) key in the app.
 const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
-const supabasePublishableKey = String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY');
+const supabasePublishableKey = String.fromEnvironment(
+  'SUPABASE_PUBLISHABLE_KEY',
+);
 
-bool get isSupabaseConfigured => supabaseUrl.isNotEmpty && supabasePublishableKey.isNotEmpty;
+bool get isSupabaseConfigured =>
+    supabaseUrl.isNotEmpty && supabasePublishableKey.isNotEmpty;

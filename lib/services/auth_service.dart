@@ -27,7 +27,9 @@ class AuthService extends ChangeNotifier {
     try {
       await _auth.signInWithPassword(email: email, password: password);
     } catch (e) {
-      throw Exception(friendlyError(e, fallback: 'Could not sign in. Please try again.'));
+      throw Exception(
+        friendlyError(e, fallback: 'Could not sign in. Please try again.'),
+      );
     }
   }
 
@@ -48,7 +50,27 @@ class AuthService extends ChangeNotifier {
       }
       return res.session != null;
     } catch (e) {
-      throw Exception(friendlyError(e, fallback: 'Could not create the account. Please try again.'));
+      throw Exception(
+        friendlyError(
+          e,
+          fallback: 'Could not create the account. Please try again.',
+        ),
+      );
+    }
+  }
+
+  /// Changes the display name shown in the app.
+  Future<void> updateName(String name) async {
+    try {
+      await _auth.updateUser(UserAttributes(data: {'username': name}));
+      notifyListeners();
+    } catch (e) {
+      throw Exception(
+        friendlyError(
+          e,
+          fallback: 'Could not save your name. Please try again.',
+        ),
+      );
     }
   }
 

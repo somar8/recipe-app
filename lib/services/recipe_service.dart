@@ -41,13 +41,15 @@ class RecipeService {
 
   Future<Recipe> create(Recipe recipe) => _save(recipe.toDb());
 
-  Future<Recipe> update(int id, Recipe recipe) => _save({...recipe.toDb(), 'id': id});
+  Future<Recipe> update(int id, Recipe recipe) =>
+      _save({...recipe.toDb(), 'id': id});
 
   /// Saves the recipe and its ingredients in one step (database function save_recipe).
   Future<Recipe> _save(Map<String, dynamic> recipe) async {
     final int id;
     try {
-      id = (await _db.rpc('save_recipe', params: {'recipe': recipe}) as num).toInt();
+      id = (await _db.rpc('save_recipe', params: {'recipe': recipe}) as num)
+          .toInt();
     } catch (e) {
       throw Exception(friendlyError(e, fallback: 'Failed to save recipe.'));
     }

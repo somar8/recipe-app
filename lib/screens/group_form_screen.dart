@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../models/group_recipes.dart';
 import '../services/group_service.dart';
+import '../theme/app_theme.dart';
+import '../widgets/app_shell.dart';
+import '../widgets/common.dart';
+import '../widgets/food_art.dart';
 
+/// Opens full-screen. Closes with the saved collection's id, or null when cancelled.
 class GroupFormScreen extends StatefulWidget {
   final int? editId;
   const GroupFormScreen({super.key, this.editId});
@@ -13,120 +18,227 @@ class GroupFormScreen extends StatefulWidget {
 
 class _GroupFormScreenState extends State<GroupFormScreen> {
   final _groupService = GroupService();
-  bool get _isEditMode => widget.editId != null;
+  final _formKey = GlobalKey<FormState>();
+  bool get _isEdit => widget.editId != null;
 
-  final _nameController = TextEditingController();
-  final _descriptionController = TextEditingController();
+  final _name = TextEditingController();
+  final _description = TextEditingController();
 
   bool _loading = false;
   bool _saving = false;
   String? _error;
+  String _savedSnapshot = '\n';
 
   @override
   void initState() {
     super.initState();
-    if (_isEditMode) _loadGroup();
-  }
-
-  Future<void> _loadGroup() async {
-    setState(() { _loading = true; _error = null; });
-    try {
-      final group = await _groupService.getById(widget.editId!);
-      _nameController.text = group.name;
-      _descriptionController.text = group.description ?? '';
-      setState(() { _loading = false; });
-    } catch (_) {
-      setState(() { _error = 'Failed to load collection.'; _loading = false; });
-    }
-  }
-
-  Future<void> _submit() async {
-    if (_nameController.text.trim().isEmpty) {
-      setState(() { _error = 'Name is required.'; });
-      return;
-    }
-    setState(() { _saving = true; _error = null; });
-
-    final group = GroupRecipes(
-      name: _nameController.text.trim(),
-      description: _descriptionController.text.trim().isNotEmpty
-          ? _descriptionController.text.trim()
-          : null,
-    );
-
-    try {
-      final saved = _isEditMode
-          ? await _groupService.update(widget.editId!, group)
-          : await _groupService.create(group);
-      if (mounted) context.go('/groups/${saved.id}');
-    } catch (e) {
-      setState(() {
-        _error = e.toString().replaceFirst('Exception: ', '');
-        _saving = false;
-      });
-    }
+    if (_isEdit) _load();
   }
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _descriptionController.dispose();
+    _name.dispose();
+    _description.dispose();
     super.dispose();
+  }
+
+  String _snapshot() => '${_name.text}\n${_description.text}';
+  bool get _hasChanges => _snapshot() != _savedSnapshot;
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final g = await _groupService.getById(widget.editId!);
+      _name.text = g.name;
+      _description.text = g.description ?? '';
+      _savedSnapshot = _snapshot();
+      if (mounted) setState(() => _loading = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = errorText(e);
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _save() async {
+    FocusScope.of(context).unfocus();
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    final group = GroupRecipes(
+      name: _name.text.trim(),
+      description: _description.text.trim().isEmpty
+          ? null
+          : _description.text.trim(),
+    );
+    try {
+      final saved = _isEdit
+          ? await _groupService.update(widget.editId!, group)
+          : await _groupService.create(group);
+      if (!mounted) return;
+      _savedSnapshot = _snapshot();
+      _close(saved.id);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = errorText(e);
+          _saving = false;
+        });
+      }
+    }
+  }
+
+  /// Back to where the form was opened from, with the saved id. When the form was the
+  /// first page (opened from a link or after a reload), goes to the item or the list.
+  void _close(int? id) {
+    if (context.canPop()) {
+      context.pop(id);
+    } else {
+      context.go(
+        id == null
+            ? (widget.editId == null ? '/groups' : '/groups/${widget.editId}')
+            : '/groups/$id',
+      );
+    }
+  }
+
+  void _confirmOrClose() => _hasChanges ? _confirmLeave() : _close(null);
+
+  Future<void> _confirmLeave() async {
+    final leave = await confirmDialog(
+      context,
+      title: 'Discard changes?',
+      message: 'What you typed won\'t be saved.',
+      confirmLabel: 'Discard',
+    );
+    if (leave && mounted) {
+      _savedSnapshot = _snapshot();
+      _close(null);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_isEditMode ? 'Edit Collection' : 'New Collection'),
-        actions: [
-          TextButton(
-            onPressed: _saving ? null : _submit,
-            child: _saving
-                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text('Save'),
+    final c = Theme.of(context).colorScheme;
+    return PopScope(
+      canPop: _saving || !_hasChanges,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _confirmLeave();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.close),
+            tooltip: 'Close',
+            onPressed: () => context.canPop()
+                ? Navigator.maybePop(context)
+                : _confirmOrClose(),
           ),
-        ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (_error != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-                    ),
-                  TextField(
-                    controller: _nameController,
-                    textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(
-                      labelText: 'Collection Name *',
-                      border: OutlineInputBorder(),
-                    ),
+          title: Text(_isEdit ? 'Edit collection' : 'New collection'),
+        ),
+        body: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : Form(
+                key: _formKey,
+                onChanged: () => setState(() {}),
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(
+                    Gap.lg,
+                    Gap.lg,
+                    Gap.lg,
+                    Gap.xxl,
                   ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _descriptionController,
-                    maxLines: 4,
-                    decoration: const InputDecoration(
-                      labelText: 'Description',
-                      border: OutlineInputBorder(),
+                  children: [
+                    PageWidth(
+                      maxWidth: 560,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Center(
+                            child: ValueListenableBuilder(
+                              valueListenable: _name,
+                              builder: (_, value, _) => CollectionArt(
+                                name: value.text.trim().isEmpty
+                                    ? 'New'
+                                    : value.text.trim(),
+                                size: 88,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: Gap.xl),
+                          if (_error != null) ...[
+                            Text(_error!, style: TextStyle(color: c.error)),
+                            const SizedBox(height: Gap.md),
+                          ],
+                          TextFormField(
+                            controller: _name,
+                            autofocus: !_isEdit,
+                            textCapitalization: TextCapitalization.sentences,
+                            textInputAction: TextInputAction.next,
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? 'Give your collection a name'
+                                : null,
+                            decoration: const InputDecoration(
+                              labelText: 'Name',
+                              hintText: 'Weeknight dinners',
+                            ),
+                          ),
+                          const SizedBox(height: Gap.md),
+                          TextFormField(
+                            controller: _description,
+                            minLines: 2,
+                            maxLines: 4,
+                            textCapitalization: TextCapitalization.sentences,
+                            decoration: const InputDecoration(
+                              labelText: 'Description',
+                              hintText: 'Quick meals for busy evenings',
+                              alignLabelWithHint: true,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  FilledButton(
-                    onPressed: _saving ? null : _submit,
-                    child: _saving
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                        : Text(_isEditMode ? 'Update Collection' : 'Create Collection'),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
+        bottomNavigationBar: _loading
+            ? null
+            : SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    Gap.lg,
+                    Gap.sm,
+                    Gap.lg,
+                    Gap.md,
+                  ),
+                  child: PageWidth(
+                    maxWidth: 560,
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: _saving ? null : _save,
+                        child: _saving
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Text(
+                                _isEdit ? 'Save changes' : 'Create collection',
+                              ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+      ),
     );
   }
 }

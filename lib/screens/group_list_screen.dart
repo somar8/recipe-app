@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import '../widgets/skeleton.dart';
 import 'package:go_router/go_router.dart';
 import '../models/group_recipes.dart';
-import '../services/auth_service.dart';
 import '../services/group_service.dart';
-
-const _groupEmojis = ['📗','📘','📙','📕','📔','📒','📓','🗂️'];
+import '../theme/app_theme.dart';
+import '../widgets/app_shell.dart';
+import '../widgets/common.dart';
+import '../widgets/food_art.dart';
 
 class GroupListScreen extends StatefulWidget {
   const GroupListScreen({super.key});
@@ -16,112 +18,258 @@ class GroupListScreen extends StatefulWidget {
 class _GroupListScreenState extends State<GroupListScreen> {
   final _groupService = GroupService();
   List<GroupRecipes> _groups = [];
-  bool _loading = false;
+  final Set<int> _hidden = {};
+  bool _loading = true;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _loadGroups();
+    _load();
   }
 
-  Future<void> _loadGroups() async {
-    setState(() { _loading = true; _error = null; });
+  Future<void> _load({bool quiet = false}) async {
+    if (!quiet) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final data = await _groupService.getAll();
-      setState(() { _groups = data; _loading = false; });
-    } catch (_) {
-      setState(() { _error = 'Failed to load collections.'; _loading = false; });
+      if (!mounted) return;
+      setState(() {
+        _groups = data;
+        _loading = false;
+        _error = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        if (!quiet || _groups.isEmpty) _error = errorText(e);
+      });
+      if (quiet) showMessage(context, errorText(e));
     }
   }
 
-  Future<void> _deleteGroup(int id) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Delete Collection'),
-        content: const Text('Are you sure you want to delete this collection?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-    try {
-      await _groupService.delete(id);
-      setState(() { _groups = _groups.where((g) => g.id != id).toList(); });
-    } catch (_) {
-      if (mounted) setState(() { _error = 'Failed to delete collection.'; });
+  Future<void> _open(GroupRecipes g) async {
+    await context.push('/groups/${g.id}');
+    _load(quiet: true);
+  }
+
+  Future<void> _create() async {
+    final id = await context.push<int>('/groups/new');
+    await _load(quiet: true);
+    if (id != null && mounted) {
+      await context.push('/groups/$id');
+      _load(quiet: true);
     }
   }
 
-  Future<void> _logout() async {
-    await AuthService().logout();
-    if (mounted) context.go('/login');
+  void _swipeDelete(GroupRecipes g) {
+    final id = g.id!;
+    setState(() => _hidden.add(id));
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('Deleted "${g.name}". Its recipes are kept.'),
+          action: SnackBarAction(label: 'Undo', onPressed: () {}),
+          duration: const Duration(seconds: 5),
+        ),
+      ).closed.then((reason) async {
+        if (reason == SnackBarClosedReason.action) {
+          if (mounted) setState(() => _hidden.remove(id));
+          return;
+        }
+        try {
+          await _groupService.delete(id);
+          if (mounted) {
+            setState(() {
+              _groups.removeWhere((x) => x.id == id);
+              _hidden.remove(id);
+            });
+          }
+        } catch (e) {
+          if (!mounted) return;
+          setState(() => _hidden.remove(id));
+          showMessage(context, errorText(e));
+        }
+      });
   }
 
   @override
   Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final visible = _groups.where((g) => !_hidden.contains(g.id)).toList();
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Collections'),
-        actions: [
-          IconButton(icon: const Icon(Icons.logout), tooltip: 'Logout', onPressed: _logout),
-        ],
-      ),
-      body: Column(
-        children: [
-          if (_error != null)
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+      floatingActionButton: _groups.isEmpty && !_loading
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: _create,
+              icon: const Icon(Icons.create_new_folder_outlined),
+              label: const Text('New collection'),
             ),
-          Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _groups.isEmpty
-                    ? const Center(child: Text('No collections yet.'))
-                    : ListView.builder(
-                        itemCount: _groups.length,
-                        itemBuilder: (_, i) {
-                          final group = _groups[i];
-                          return ListTile(
-                            leading: Text(
-                              _groupEmojis[i % _groupEmojis.length],
-                              style: const TextStyle(fontSize: 28),
+      body: SafeArea(
+        bottom: false,
+        child: _loading
+            ? const ListPageSkeleton(cards: 3, showSearch: false)
+            : _error != null
+            ? ErrorState(message: _error!, onRetry: _load)
+            : _groups.isEmpty
+            ? EmptyState(
+                icon: Icons.folder_special_outlined,
+                title: 'Group your recipes',
+                message:
+                    'Make collections like "Weeknight dinners" or "Baking" to find recipes faster.',
+                actionLabel: 'New collection',
+                onAction: _create,
+              )
+            : RefreshIndicator(
+                onRefresh: () => _load(quiet: true),
+                child: PageWidth(
+                  maxWidth: 1100,
+                  child: LayoutBuilder(
+                    builder: (context, box) => CustomScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      slivers: [
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(
+                            Gap.lg,
+                            Gap.lg,
+                            Gap.lg,
+                            Gap.lg,
+                          ),
+                          sliver: SliverToBoxAdapter(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Your collections',
+                                  style: t.headlineMedium,
+                                ),
+                                const SizedBox(height: Gap.xs),
+                                Text(
+                                  '${visible.length} ${visible.length == 1 ? 'collection' : 'collections'}',
+                                  style: t.bodyMedium?.copyWith(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
                             ),
-                            title: Text(group.name),
-                            subtitle: group.description != null
-                                ? Text(group.description!, maxLines: 1, overflow: TextOverflow.ellipsis)
-                                : null,
-                            trailing: IconButton(
-                              icon: const Icon(Icons.delete_outline),
-                              onPressed: () => _deleteGroup(group.id!),
+                          ),
+                        ),
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(
+                            Gap.lg,
+                            0,
+                            Gap.lg,
+                            96,
+                          ),
+                          sliver: SliverCardGrid(
+                            columns: cardColumns(box.maxWidth),
+                            itemCount: visible.length,
+                            itemBuilder: (_, i) {
+                              final g = visible[i];
+                              return Dismissible(
+                                key: ValueKey('group-${g.id}'),
+                                direction: DismissDirection.endToStart,
+                                background: const SwipeDeleteBackground(),
+                                onDismissed: (_) => _swipeDelete(g),
+                                child: _CollectionCard(
+                                  group: g,
+                                  onTap: () => _open(g),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+      ),
+    );
+  }
+}
+
+class _CollectionCard extends StatelessWidget {
+  const _CollectionCard({required this.group, required this.onTap});
+
+  final GroupRecipes group;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final c = Theme.of(context).colorScheme;
+    final recipes = group.recipes ?? const [];
+    return Card(
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(Gap.md),
+          child: Row(
+            children: [
+              CollectionArt(name: group.name, size: 64),
+              const SizedBox(width: Gap.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      group.name,
+                      style: t.titleMedium,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      group.description?.isNotEmpty == true
+                          ? group.description!
+                          : '${recipes.length} ${recipes.length == 1 ? 'recipe' : 'recipes'}',
+                      style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: Gap.sm),
+                    // A peek at what's inside.
+                    Row(
+                      children: [
+                        for (final r in recipes.take(4))
+                          Padding(
+                            padding: const EdgeInsets.only(right: Gap.xs),
+                            child: FoodArt(title: r.title, size: 28, radius: 8),
+                          ),
+                        if (recipes.length > 4)
+                          Text(
+                            '+${recipes.length - 4}',
+                            style: t.labelMedium?.copyWith(
+                              color: c.onSurfaceVariant,
                             ),
-                            onTap: () => context.push('/groups/${group.id}'),
-                          );
-                        },
-                      ),
+                          ),
+                        if (recipes.isEmpty)
+                          Text(
+                            'Empty',
+                            style: t.labelMedium?.copyWith(
+                              color: c.onSurfaceVariant,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: c.onSurfaceVariant),
+            ],
           ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          await context.push('/groups/new');
-          _loadGroups();
-        },
-        child: const Icon(Icons.add),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 1,
-        onTap: (i) {
-          if (i == 0) context.go('/recipes');
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.restaurant_menu), label: 'Recipes'),
-          BottomNavigationBarItem(icon: Icon(Icons.folder_open), label: 'Collections'),
-        ],
+        ),
       ),
     );
   }

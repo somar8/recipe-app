@@ -21,7 +21,11 @@ class GroupService {
   Future<GroupRecipes> getById(int id) async {
     final Map<String, dynamic>? row;
     try {
-      row = await _db.from('recipe_groups').select(_select).eq('id', id).maybeSingle();
+      row = await _db
+          .from('recipe_groups')
+          .select(_select)
+          .eq('id', id)
+          .maybeSingle();
     } catch (e) {
       throw Exception(friendlyError(e, fallback: 'Failed to load the group.'));
     }
@@ -31,7 +35,11 @@ class GroupService {
 
   Future<GroupRecipes> create(GroupRecipes group) async {
     try {
-      final row = await _db.from('recipe_groups').insert(group.toDb()).select(_select).single();
+      final row = await _db
+          .from('recipe_groups')
+          .insert(group.toDb())
+          .select(_select)
+          .single();
       return GroupRecipes.fromDb(row);
     } catch (e) {
       throw Exception(friendlyError(e, fallback: 'Failed to save group.'));
@@ -40,8 +48,12 @@ class GroupService {
 
   Future<GroupRecipes> update(int id, GroupRecipes group) async {
     try {
-      final row =
-          await _db.from('recipe_groups').update(group.toDb()).eq('id', id).select(_select).single();
+      final row = await _db
+          .from('recipe_groups')
+          .update(group.toDb())
+          .eq('id', id)
+          .select(_select)
+          .single();
       return GroupRecipes.fromDb(row);
     } catch (e) {
       throw Exception(friendlyError(e, fallback: 'Failed to save group.'));
@@ -58,9 +70,10 @@ class GroupService {
 
   Future<GroupRecipes> addRecipe(int groupId, int recipeId) async {
     try {
-      await _db
-          .from('recipe_group_items')
-          .upsert({'group_id': groupId, 'recipe_id': recipeId}, ignoreDuplicates: true);
+      await _db.from('recipe_group_items').upsert({
+        'group_id': groupId,
+        'recipe_id': recipeId,
+      }, ignoreDuplicates: true);
     } catch (e) {
       throw Exception(friendlyError(e, fallback: 'Failed to add recipe.'));
     }

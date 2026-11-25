@@ -1,17 +1,26 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Turns a Supabase or network error into a sentence the user can act on.
-String friendlyError(Object error, {String fallback = 'Something went wrong. Please try again.'}) {
+String friendlyError(
+  Object error, {
+  String fallback = 'Something went wrong. Please try again.',
+}) {
   if (error is AuthException) {
     final msg = error.message.toLowerCase();
     // Checked first: a network error's text holds the request URL (...grant_type=password).
-    if (error is AuthRetryableFetchException || _looksOffline(msg)) return _offline;
+    if (error is AuthRetryableFetchException || _looksOffline(msg)) {
+      return _offline;
+    }
     if (msg.contains('invalid login')) return 'Wrong email or password.';
     if (msg.contains('email not confirmed')) {
       return 'Please confirm your email first: open the link we sent you.';
     }
-    if (msg.contains('already registered')) return 'An account with this email already exists. Sign in instead.';
-    if (msg.startsWith('password')) return error.message; // e.g. "Password should be at least 6 characters."
+    if (msg.contains('already registered')) {
+      return 'An account with this email already exists. Sign in instead.';
+    }
+    if (msg.startsWith('password')) {
+      return error.message; // e.g. "Password should be at least 6 characters."
+    }
     if (msg.contains('rate limit') || error.statusCode == '429') {
       return 'Too many attempts. Please wait a few minutes and try again.';
     }
@@ -27,7 +36,8 @@ String friendlyError(Object error, {String fallback = 'Something went wrong. Ple
       case '42501':
         return 'You are not allowed to do that. Try signing in again.';
     }
-    if (error.code == 'PGRST301' || error.message.toLowerCase().contains('jwt')) {
+    if (error.code == 'PGRST301' ||
+        error.message.toLowerCase().contains('jwt')) {
       return 'Your session has expired. Please sign in again.';
     }
     return fallback;

@@ -21,9 +21,24 @@ changes only their own recipes and groups; the database enforces this itself
 - `lib/screens/` – the 8 screens
 - `supabase/schema.sql` – tables, access rules, the `save_recipe` function (saves a recipe and its ingredients in one step) and `ping`
 - `supabase/tests/` – 32 database checks on a throwaway local Postgres: `bash supabase/tests/run.sh` (needs Postgres installed; nothing touches Supabase)
-- `test/` – app tests: `flutter test`
+- `test/` – app tests: `flutter test` (85 tests). `screens_test.dart` opens every screen on the demo data at
+  phone, tablet and laptop size, in dark mode and at 200% text, and checks layout, tap-target size, button labels
+  and text contrast
+- `assets/fonts/` – Fraunces and Inter (SIL Open Font License), bundled so nothing is fetched from Google
+- `tool/generate_icons.dart` – draws the app icon for web, Android and iOS: `flutter test tool/generate_icons.dart`
+- `lib/theme/` – colours, fonts and component styles; `lib/widgets/` – the navigation shell and shared pieces
 - `vercel.json` – how Vercel builds and serves the web app
 - `.github/workflows/keep-supabase-awake.yml` – the daily ping
+
+## Try it without Supabase (demo mode)
+
+```bash
+flutter run -d chrome -t lib/demo/main_demo.dart
+```
+
+This runs the real app on made-up recipes kept in memory (`lib/demo/`), so you can try the
+screens before setting anything up. Nothing is saved, and a reload starts over. Vercel never
+builds it: it builds `lib/main.dart`.
 
 ## Set it up (once, about 30 minutes)
 

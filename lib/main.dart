@@ -4,6 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config.dart';
 import 'services/auth_service.dart';
+import 'services/theme_settings.dart';
+import 'widgets/app_shell.dart';
+import 'screens/account_screen.dart';
+import 'theme/app_theme.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/recipe_list_screen.dart';
@@ -17,16 +21,24 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Clean web links (/recipes/3 instead of /#/recipes/3); vercel.json sends every path to the app.
   usePathUrlStrategy();
+  await useBundledFonts();
   if (!isSupabaseConfigured) {
     runApp(const MissingConfigApp());
     return;
   }
-  await Supabase.initialize(url: supabaseUrl, publishableKey: supabasePublishableKey);
+  await Supabase.initialize(
+    url: supabaseUrl,
+    publishableKey: supabasePublishableKey,
+  );
   AuthService().init();
+  ThemeSettings().init();
   runApp(const RecipeApp());
 }
 
+final _rootKey = GlobalKey<NavigatorState>();
+
 final _router = GoRouter(
+  navigatorKey: _rootKey,
   initialLocation: '/recipes',
   refreshListenable: AuthService(),
   redirect: (context, state) {
@@ -43,47 +55,110 @@ final _router = GoRouter(
     GoRoute(path: '/', builder: (_, _) => const SizedBox.shrink()),
     GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
     GoRoute(path: '/register', builder: (_, _) => const RegisterScreen()),
-    GoRoute(path: '/recipes', builder: (_, _) => const RecipeListScreen()),
-    GoRoute(path: '/recipes/new', builder: (_, _) => const RecipeFormScreen()),
+
+    // Forms open full-screen, over the navigation bar. Listed before the tabs so
+    // '/recipes/new' is not read as a recipe id.
     GoRoute(
-      path: '/recipes/:id',
-      builder: (_, state) =>
-          RecipeDetailScreen(id: int.parse(state.pathParameters['id']!)),
+      path: '/recipes/new',
+      parentNavigatorKey: _rootKey,
+      pageBuilder: (_, state) => _fullScreen(state, const RecipeFormScreen()),
     ),
     GoRoute(
       path: '/recipes/:id/edit',
-      builder: (_, state) =>
-          RecipeFormScreen(editId: int.parse(state.pathParameters['id']!)),
+      parentNavigatorKey: _rootKey,
+      pageBuilder: (_, state) => _fullScreen(
+        state,
+        RecipeFormScreen(editId: int.parse(state.pathParameters['id']!)),
+      ),
     ),
-    GoRoute(path: '/groups', builder: (_, _) => const GroupListScreen()),
-    GoRoute(path: '/groups/new', builder: (_, _) => const GroupFormScreen()),
     GoRoute(
-      path: '/groups/:id',
-      builder: (_, state) =>
-          GroupDetailScreen(id: int.parse(state.pathParameters['id']!)),
+      path: '/groups/new',
+      parentNavigatorKey: _rootKey,
+      pageBuilder: (_, state) => _fullScreen(state, const GroupFormScreen()),
     ),
     GoRoute(
       path: '/groups/:id/edit',
-      builder: (_, state) =>
-          GroupFormScreen(editId: int.parse(state.pathParameters['id']!)),
+      parentNavigatorKey: _rootKey,
+      pageBuilder: (_, state) => _fullScreen(
+        state,
+        GroupFormScreen(editId: int.parse(state.pathParameters['id']!)),
+      ),
+    ),
+
+    // The three tabs. Each keeps its own history and scroll position.
+    StatefulShellRoute.indexedStack(
+      builder: (_, _, shell) => AppShell(shell: shell),
+      branches: [
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/recipes',
+              builder: (_, _) => const RecipeListScreen(),
+              routes: [
+                GoRoute(
+                  path: ':id',
+                  builder: (_, state) => RecipeDetailScreen(
+                    id: int.parse(state.pathParameters['id']!),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/groups',
+              builder: (_, _) => const GroupListScreen(),
+              routes: [
+                GoRoute(
+                  path: ':id',
+                  builder: (_, state) => GroupDetailScreen(
+                    id: int.parse(state.pathParameters['id']!),
+                  ),
+                  routes: [
+                    // A recipe opened from a collection stays in the Collections tab.
+                    GoRoute(
+                      path: 'recipes/:rid',
+                      builder: (_, state) => RecipeDetailScreen(
+                        id: int.parse(state.pathParameters['rid']!),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(path: '/account', builder: (_, _) => const AccountScreen()),
+          ],
+        ),
+      ],
     ),
   ],
 );
 
-ThemeData _theme() => ThemeData(
-      colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
-      useMaterial3: true,
-    );
+/// A full-screen page that slides up, used for forms.
+Page<void> _fullScreen(GoRouterState state, Widget child) =>
+    MaterialPage(key: state.pageKey, fullscreenDialog: true, child: child);
 
 class RecipeApp extends StatelessWidget {
   const RecipeApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
-      title: 'Recipe App',
-      theme: _theme(),
-      routerConfig: _router,
+    return ListenableBuilder(
+      listenable: ThemeSettings(),
+      builder: (_, _) => MaterialApp.router(
+        title: 'Recipe App',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light(),
+        darkTheme: AppTheme.dark(),
+        themeMode: ThemeSettings().mode,
+        routerConfig: _router,
+      ),
     );
   }
 }
@@ -96,7 +171,8 @@ class MissingConfigApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Recipe App',
-      theme: _theme(),
+      theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
       home: const Scaffold(
         body: Center(
           child: Padding(

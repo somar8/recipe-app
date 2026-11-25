@@ -6,7 +6,9 @@ import 'package:recipe_app/services/errors.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
-  testWidgets('without Supabase settings the app explains how to set it up', (tester) async {
+  testWidgets('without Supabase settings the app explains how to set it up', (
+    tester,
+  ) async {
     await tester.pumpWidget(const MissingConfigApp());
     expect(find.textContaining('not set up yet'), findsOneWidget);
   });
@@ -20,8 +22,20 @@ void main() {
         'cook_time_minutes': null,
         'servings': 4,
         'recipe_ingredients': [
-          {'id': 2, 'position': 1, 'name': 'milk', 'quantity': '500', 'unit': 'ml'},
-          {'id': 1, 'position': 0, 'name': 'flour', 'quantity': '250', 'unit': 'g'},
+          {
+            'id': 2,
+            'position': 1,
+            'name': 'milk',
+            'quantity': '500',
+            'unit': 'ml',
+          },
+          {
+            'id': 1,
+            'position': 0,
+            'name': 'flour',
+            'quantity': '250',
+            'unit': 'g',
+          },
         ],
       });
       expect(r.id, 7);
@@ -34,7 +48,9 @@ void main() {
       final r = Recipe(
         title: 'Soup',
         servings: 2,
-        ingredients: [RecipeIngredient(name: 'tomatoes', quantity: '', unit: 'kg')],
+        ingredients: [
+          RecipeIngredient(name: 'tomatoes', quantity: '', unit: 'kg'),
+        ],
       );
       expect(r.toDb(), {
         'title': 'Soup',
@@ -66,28 +82,49 @@ void main() {
 
   group('friendlyError', () {
     test('explains a wrong password', () {
-      expect(friendlyError(const AuthException('Invalid login credentials')),
-          'Wrong email or password.');
+      expect(
+        friendlyError(const AuthException('Invalid login credentials')),
+        'Wrong email or password.',
+      );
     });
     test('explains an unconfirmed email', () {
-      expect(friendlyError(const AuthException('Email not confirmed')), contains('confirm your email'));
+      expect(
+        friendlyError(const AuthException('Email not confirmed')),
+        contains('confirm your email'),
+      );
     });
     test('explains invalid numbers', () {
-      expect(friendlyError(const PostgrestException(message: 'violates check', code: '23514')),
-          contains('above 0'));
+      expect(
+        friendlyError(
+          const PostgrestException(message: 'violates check', code: '23514'),
+        ),
+        contains('above 0'),
+      );
     });
     test('explains being offline', () {
-      expect(friendlyError(Exception('ClientException: Failed to fetch')), contains('No connection'));
+      expect(
+        friendlyError(Exception('ClientException: Failed to fetch')),
+        contains('No connection'),
+      );
     });
     test('explains being offline during sign-in, not the raw request', () {
       expect(
-          friendlyError(AuthRetryableFetchException(
-              message: 'ClientException: Failed to fetch, uri=https://x.supabase.co/auth/v1/token?grant_type=password')),
-          contains('No connection'));
+        friendlyError(
+          AuthRetryableFetchException(
+            message:
+                'ClientException: Failed to fetch, uri=https://x.supabase.co/auth/v1/token?grant_type=password',
+          ),
+        ),
+        contains('No connection'),
+      );
     });
     test('passes on a password rule', () {
-      expect(friendlyError(const AuthException('Password should be at least 6 characters.')),
-          'Password should be at least 6 characters.');
+      expect(
+        friendlyError(
+          const AuthException('Password should be at least 6 characters.'),
+        ),
+        'Password should be at least 6 characters.',
+      );
     });
   });
 }
