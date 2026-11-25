@@ -14,6 +14,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _loading = false;
+  bool _checkEmail = false;
   String? _error;
 
   Future<void> _submit() async {
@@ -22,12 +23,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _error = null;
     });
     try {
-      await AuthService().register(
+      final ready = await AuthService().register(
         _usernameController.text.trim(),
         _emailController.text.trim(),
         _passwordController.text,
       );
-      if (mounted) context.go('/recipes');
+      if (!mounted) return;
+      if (ready) {
+        context.go('/recipes');
+      } else {
+        setState(() {
+          _checkEmail = true;
+          _loading = false;
+        });
+      }
     } catch (e) {
       setState(() {
         _error = e.toString().replaceFirst('Exception: ', '');
@@ -68,11 +77,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 32),
+                if (_checkEmail) ...[
+                  Icon(Icons.mark_email_read_outlined,
+                      size: 48, color: Theme.of(context).colorScheme.primary),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Almost done! We sent a confirmation link to '
+                    '${_emailController.text.trim()}. Open it, then sign in.',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton(
+                    onPressed: () => context.go('/login'),
+                    child: const Text('Go to Sign In'),
+                  ),
+                ] else ...[
                 TextField(
                   controller: _usernameController,
                   textInputAction: TextInputAction.next,
                   decoration: const InputDecoration(
-                    labelText: 'Username',
+                    labelText: 'Name',
+                    helperText: 'Shown in the app; you sign in with your email',
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -90,10 +115,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 TextField(
                   controller: _passwordController,
                   obscureText: true,
+                  autofillHints: const [AutofillHints.newPassword],
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => _submit(),
                   decoration: const InputDecoration(
                     labelText: 'Password',
+                    helperText: 'At least 6 characters',
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -120,6 +147,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   onPressed: () => context.go('/login'),
                   child: const Text('Already have an account? Sign In'),
                 ),
+                ],
               ],
             ),
           ),

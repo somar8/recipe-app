@@ -1,69 +1,62 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
-import '../models/auth_models.dart';
+import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'errors.dart';
 
-class AuthService {
+/// Sign-up, sign-in and sign-out through Supabase Auth.
+/// Supabase keeps the session on the device and refreshes it by itself.
+class AuthService extends ChangeNotifier {
   static final AuthService _instance = AuthService._internal();
   factory AuthService() => _instance;
   AuthService._internal();
 
-  static const _baseUrl = 'https://recipes-be-production.up.railway.app/api/auth';
+  GoTrueClient get _auth => Supabase.instance.client.auth;
 
-  String? _token;
-  String? _username;
-
-  String? get token => _token;
-  String? get username => _username;
-  bool get isLoggedIn => _token != null && _token!.isNotEmpty;
-
-  Future<void> init() async {
-    final prefs = await SharedPreferences.getInstance();
-    _token = prefs.getString('auth_token');
-    _username = prefs.getString('auth_username');
+  /// Call once after Supabase.initialize. Tells listeners (the router) when you sign in or out.
+  void init() {
+    _auth.onAuthStateChange.listen((_) => notifyListeners());
   }
 
-  Future<AuthResponse> login(String username, String password) async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/login'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'username': username, 'password': password}),
-    );
-    if (response.statusCode != 200) {
-      throw Exception('Invalid username or password.');
+  bool get isLoggedIn => _auth.currentSession != null;
+
+  String? get email => _auth.currentUser?.email;
+
+  String? get username =>
+      (_auth.currentUser?.userMetadata?['username'] as String?) ?? email;
+
+  Future<void> login(String email, String password) async {
+    try {
+      await _auth.signInWithPassword(email: email, password: password);
+    } catch (e) {
+      throw Exception(friendlyError(e, fallback: 'Could not sign in. Please try again.'));
     }
-    final data = AuthResponse.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
-    await _storeAuth(data);
-    return data;
   }
 
-  Future<AuthResponse> register(String username, String email, String password) async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/register'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'username': username, 'email': email, 'password': password}),
-    );
-    if (response.statusCode != 200 && response.statusCode != 201) {
-      throw Exception(response.body.isNotEmpty ? response.body : 'Registration failed.');
+  /// Returns true when the account is ready to use, or false when the user
+  /// must first confirm their email address.
+  Future<bool> register(String username, String email, String password) async {
+    try {
+      final res = await _auth.signUp(
+        email: email,
+        password: password,
+        data: {'username': username},
+        // On the web, the confirmation link brings the user back to this site.
+        emailRedirectTo: kIsWeb ? Uri.base.origin : null,
+      );
+      // Supabase hides whether an email is taken; an empty identities list means it is.
+      if (res.user != null && (res.user!.identities?.isEmpty ?? false)) {
+        throw const AuthException('User already registered');
+      }
+      return res.session != null;
+    } catch (e) {
+      throw Exception(friendlyError(e, fallback: 'Could not create the account. Please try again.'));
     }
-    final data = AuthResponse.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
-    await _storeAuth(data);
-    return data;
   }
 
   Future<void> logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('auth_token');
-    await prefs.remove('auth_username');
-    _token = null;
-    _username = null;
-  }
-
-  Future<void> _storeAuth(AuthResponse res) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('auth_token', res.token);
-    await prefs.setString('auth_username', res.username);
-    _token = res.token;
-    _username = res.username;
+    try {
+      await _auth.signOut();
+    } catch (_) {
+      // Signing out locally still works when offline.
+    }
   }
 }

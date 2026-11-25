@@ -1,37 +1,26 @@
 import 'recipe.dart';
 
-class GroupUser {
-  final int id;
-  final String username;
-  GroupUser({required this.id, required this.username});
-  factory GroupUser.fromJson(Map<String, dynamic> json) =>
-      GroupUser(id: json['id'], username: json['username']);
-}
-
 class GroupRecipes {
   int? id;
   String name;
   String? description;
-  GroupUser? user;
   List<Recipe>? recipes;
 
-  GroupRecipes({this.id, required this.name, this.description, this.user, this.recipes});
+  GroupRecipes({this.id, required this.name, this.description, this.recipes});
 
-  factory GroupRecipes.fromJson(Map<String, dynamic> json) => GroupRecipes(
-        id: json['id'],
-        name: json['name'] ?? '',
-        description: json['description'],
-        user: json['user'] != null
-            ? GroupUser.fromJson(json['user'] as Map<String, dynamic>)
-            : null,
-        recipes: (json['recipes'] as List<dynamic>?)
-            ?.map((e) => Recipe.fromJson(e as Map<String, dynamic>))
+  /// Reads a row of the `recipe_groups` table, with `recipes` nested when selected.
+  factory GroupRecipes.fromDb(Map<String, dynamic> row) => GroupRecipes(
+        id: (row['id'] as num?)?.toInt(),
+        name: row['name'] ?? '',
+        description: row['description'],
+        recipes: (row['recipes'] as List<dynamic>?)
+            ?.map((e) => Recipe.fromDb(e as Map<String, dynamic>))
             .toList(),
       );
 
-  Map<String, dynamic> toJson() => {
-        if (id != null) 'id': id,
+  /// The columns the app writes; the owner is filled in by the database.
+  Map<String, dynamic> toDb() => {
         'name': name,
-        if (description != null) 'description': description,
+        'description': (description == null || description!.isEmpty) ? null : description,
       };
 }

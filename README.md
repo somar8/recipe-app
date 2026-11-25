@@ -1,17 +1,73 @@
-# recipe_app
+# Recipe App
 
-A new Flutter project.
+Your recipes and collections, on the web, Android and iOS, from one Flutter codebase.
 
-## Getting Started
+## Free stack (€0 per month)
 
-This project is a starting point for a Flutter application.
+| Part | Service | Free tier |
+| --- | --- | --- |
+| Web app | [Vercel](https://vercel.com) Hobby | Personal, non-commercial use |
+| Login and database | [Supabase](https://supabase.com) Free | 500 MB database; pauses after a week without activity (a daily GitHub Action keeps it awake) |
+| Android / iOS store apps | Optional, later | Google Play $25 once, Apple $99 a year |
 
-A few resources to get you started if this is your first Flutter project:
+There is no backend server: the app talks to Supabase directly. Every user sees and
+changes only their own recipes and groups; the database enforces this itself
+(Row Level Security, see `supabase/schema.sql`).
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+## Project layout
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- `lib/services/` – `auth_service.dart` (Supabase Auth), `recipe_service.dart`, `group_service.dart`, `errors.dart` (clear error messages)
+- `lib/models/` – `Recipe`, `RecipeIngredient`, `GroupRecipes`, read from and written to the database
+- `lib/screens/` – the 8 screens
+- `supabase/schema.sql` – tables, access rules, the `save_recipe` function (saves a recipe and its ingredients in one step) and `ping`
+- `supabase/tests/` – 32 database checks on a throwaway local Postgres: `bash supabase/tests/run.sh` (needs Postgres installed; nothing touches Supabase)
+- `test/` – app tests: `flutter test`
+- `vercel.json` – how Vercel builds and serves the web app
+- `.github/workflows/keep-supabase-awake.yml` – the daily ping
+
+## Set it up (once, about 30 minutes)
+
+### 1. Create the Supabase project
+1. Sign in at <https://supabase.com> (the same account as Word Buddy is fine: the free plan allows 2 projects).
+2. **New project**, name `recipe-app`, region **Frankfurt** (or another in Europe). Save the database password somewhere safe.
+3. **SQL Editor → New query**: paste all of `supabase/schema.sql` and click **Run**. (Run it again after each update; it keeps your data.)
+4. Click **Connect** at the top and copy the **Project URL** (`https://<project-id>.supabase.co`).
+5. **Project Settings → API Keys**: copy the **publishable key**. Never use the secret key in the app.
+
+### 2. Run it on your computer
+```bash
+cp supabase.example.json supabase.local.json
+```
+Put the URL and publishable key in `supabase.local.json` (it is not committed). Then:
+```bash
+flutter run -d chrome --dart-define-from-file=supabase.local.json
+```
+The same flag works for the iOS simulator and an Android emulator.
+
+### 3. Put the code on GitHub
+Create a **private** repository and push this folder to it.
+
+### 4. Deploy on Vercel
+1. At <https://vercel.com>: **Add New → Project**, import the repository.
+2. Leave the framework as **Other**; `vercel.json` already has the build settings.
+3. **Environment Variables**: add `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` (same values as above).
+4. **Deploy**. The first build takes about 3–5 minutes (Vercel downloads Flutter). You get a link such as `https://recipe-app-xyz.vercel.app`.
+
+Every push to `main` deploys a new version.
+
+### 5. Finish Supabase
+**Authentication → URL Configuration**:
+- **Site URL**: your Vercel link.
+- **Redirect URLs**: add your Vercel link and `http://localhost:*` for testing.
+
+Supabase's built-in email sends only a few emails per hour. For more sign-ups, add a free SMTP
+service (Resend, Brevo) under **Authentication → Emails → SMTP Settings**.
+
+### 6. Keep Supabase awake
+In the GitHub repository: **Settings → Secrets and variables → Actions**, add `SUPABASE_URL` and
+`SUPABASE_PUBLISHABLE_KEY`. Then **Actions → Keep Supabase awake → Run workflow** once to check it.
+(GitHub pauses scheduled workflows in a repository with no commits for 60 days; it emails you first, and one click turns it back on.)
+
+### 7. Install it on your phone
+- **iPhone**: open the Vercel link in Safari → **Share → Add to Home Screen**.
+- **Android**: open it in Chrome → menu → **Install app**.

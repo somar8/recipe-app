@@ -1,61 +1,68 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/recipe.dart';
-import 'auth_service.dart';
+import 'errors.dart';
 
+/// Recipes of the signed-in user. The database only ever returns the user's own rows.
 class RecipeService {
-  static const _baseUrl = 'https://recipes-be-production.up.railway.app/api/recipes';
+  SupabaseClient get _db => Supabase.instance.client;
 
-  Map<String, String> get _headers => {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${AuthService().token}',
-      };
+  static const _select = '*, recipe_ingredients(*)';
 
   Future<List<Recipe>> getAll({String? title}) async {
-    final uri = Uri.parse(_baseUrl).replace(
-      queryParameters:
-          (title != null && title.isNotEmpty) ? {'title': title} : null,
-    );
-    final response = await http.get(uri, headers: _headers);
-    if (response.statusCode != 200) throw Exception('Failed to load recipes.');
-    return (jsonDecode(response.body) as List)
-        .map((e) => Recipe.fromJson(e as Map<String, dynamic>))
-        .toList();
+    try {
+      var query = _db.from('recipes').select(_select);
+      if (title != null && title.isNotEmpty) {
+        query = query.ilike('title', '%${_escapeLike(title)}%');
+      }
+      final rows = await query
+          .order('id')
+          .order('position', referencedTable: 'recipe_ingredients');
+      return rows.map(Recipe.fromDb).toList();
+    } catch (e) {
+      throw Exception(friendlyError(e, fallback: 'Failed to load recipes.'));
+    }
   }
 
   Future<Recipe> getById(int id) async {
-    final response = await http.get(Uri.parse('$_baseUrl/$id'), headers: _headers);
-    if (response.statusCode != 200) throw Exception('Recipe not found.');
-    return Recipe.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
-  }
-
-  Future<Recipe> create(Recipe recipe) async {
-    final response = await http.post(
-      Uri.parse(_baseUrl),
-      headers: _headers,
-      body: jsonEncode(recipe.toJson()),
-    );
-    if (response.statusCode != 200 && response.statusCode != 201) {
-      throw Exception('Failed to save recipe.');
+    final Map<String, dynamic>? row;
+    try {
+      row = await _db
+          .from('recipes')
+          .select(_select)
+          .eq('id', id)
+          .order('position', referencedTable: 'recipe_ingredients')
+          .maybeSingle();
+    } catch (e) {
+      throw Exception(friendlyError(e, fallback: 'Failed to load the recipe.'));
     }
-    return Recipe.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+    if (row == null) throw Exception('Recipe not found.');
+    return Recipe.fromDb(row);
   }
 
-  Future<Recipe> update(int id, Recipe recipe) async {
-    final response = await http.put(
-      Uri.parse('$_baseUrl/$id'),
-      headers: _headers,
-      body: jsonEncode(recipe.toJson()),
-    );
-    if (response.statusCode != 200) throw Exception('Failed to save recipe.');
-    return Recipe.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+  Future<Recipe> create(Recipe recipe) => _save(recipe.toDb());
+
+  Future<Recipe> update(int id, Recipe recipe) => _save({...recipe.toDb(), 'id': id});
+
+  /// Saves the recipe and its ingredients in one step (database function save_recipe).
+  Future<Recipe> _save(Map<String, dynamic> recipe) async {
+    final int id;
+    try {
+      id = (await _db.rpc('save_recipe', params: {'recipe': recipe}) as num).toInt();
+    } catch (e) {
+      throw Exception(friendlyError(e, fallback: 'Failed to save recipe.'));
+    }
+    return getById(id);
   }
 
   Future<void> delete(int id) async {
-    final response =
-        await http.delete(Uri.parse('$_baseUrl/$id'), headers: _headers);
-    if (response.statusCode != 200 && response.statusCode != 204) {
-      throw Exception('Failed to delete recipe.');
+    try {
+      await _db.from('recipes').delete().eq('id', id);
+    } catch (e) {
+      throw Exception(friendlyError(e, fallback: 'Failed to delete recipe.'));
     }
   }
 }
+
+/// `%` and `_` are wildcards in a LIKE pattern; search for them literally.
+String _escapeLike(String text) =>
+    text.replaceAll(r'\', r'\\').replaceAll('%', r'\%').replaceAll('_', r'\_');

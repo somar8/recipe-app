@@ -1,30 +1,93 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
 import 'package:recipe_app/main.dart';
+import 'package:recipe_app/models/group_recipes.dart';
+import 'package:recipe_app/models/recipe.dart';
+import 'package:recipe_app/services/errors.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('without Supabase settings the app explains how to set it up', (tester) async {
+    await tester.pumpWidget(const MissingConfigApp());
+    expect(find.textContaining('not set up yet'), findsOneWidget);
+  });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  group('Recipe', () {
+    test('reads a database row with ingredients in their saved order', () {
+      final r = Recipe.fromDb({
+        'id': 7,
+        'title': 'Pancakes',
+        'prep_time_minutes': 10,
+        'cook_time_minutes': null,
+        'servings': 4,
+        'recipe_ingredients': [
+          {'id': 2, 'position': 1, 'name': 'milk', 'quantity': '500', 'unit': 'ml'},
+          {'id': 1, 'position': 0, 'name': 'flour', 'quantity': '250', 'unit': 'g'},
+        ],
+      });
+      expect(r.id, 7);
+      expect(r.prepTimeMinutes, 10);
+      expect(r.cookTimeMinutes, isNull);
+      expect(r.ingredients!.map((i) => i.name), ['flour', 'milk']);
+    });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    test('writes the shape save_recipe expects', () {
+      final r = Recipe(
+        title: 'Soup',
+        servings: 2,
+        ingredients: [RecipeIngredient(name: 'tomatoes', quantity: '', unit: 'kg')],
+      );
+      expect(r.toDb(), {
+        'title': 'Soup',
+        'description': null,
+        'instructions': null,
+        'prep_time_minutes': null,
+        'cook_time_minutes': null,
+        'servings': 2,
+        'ingredients': [
+          {'name': 'tomatoes', 'unit': 'kg'},
+        ],
+      });
+    });
+  });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  test('a group reads its nested recipes and writes only its own fields', () {
+    final g = GroupRecipes.fromDb({
+      'id': 3,
+      'name': 'Breakfast',
+      'description': '',
+      'user_id': 'abc',
+      'recipes': [
+        {'id': 7, 'title': 'Pancakes'},
+      ],
+    });
+    expect(g.recipes!.single.title, 'Pancakes');
+    expect(g.toDb(), {'name': 'Breakfast', 'description': null});
+  });
+
+  group('friendlyError', () {
+    test('explains a wrong password', () {
+      expect(friendlyError(const AuthException('Invalid login credentials')),
+          'Wrong email or password.');
+    });
+    test('explains an unconfirmed email', () {
+      expect(friendlyError(const AuthException('Email not confirmed')), contains('confirm your email'));
+    });
+    test('explains invalid numbers', () {
+      expect(friendlyError(const PostgrestException(message: 'violates check', code: '23514')),
+          contains('above 0'));
+    });
+    test('explains being offline', () {
+      expect(friendlyError(Exception('ClientException: Failed to fetch')), contains('No connection'));
+    });
+    test('explains being offline during sign-in, not the raw request', () {
+      expect(
+          friendlyError(AuthRetryableFetchException(
+              message: 'ClientException: Failed to fetch, uri=https://x.supabase.co/auth/v1/token?grant_type=password')),
+          contains('No connection'));
+    });
+    test('passes on a password rule', () {
+      expect(friendlyError(const AuthException('Password should be at least 6 characters.')),
+          'Password should be at least 6 characters.');
+    });
   });
 }

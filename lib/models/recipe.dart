@@ -6,15 +6,14 @@ class RecipeIngredient {
 
   RecipeIngredient({this.id, required this.name, this.quantity, this.unit});
 
-  factory RecipeIngredient.fromJson(Map<String, dynamic> json) => RecipeIngredient(
-        id: json['id'],
-        name: json['name'] ?? '',
-        quantity: json['quantity'],
-        unit: json['unit'],
+  factory RecipeIngredient.fromDb(Map<String, dynamic> row) => RecipeIngredient(
+        id: (row['id'] as num?)?.toInt(),
+        name: row['name'] ?? '',
+        quantity: row['quantity'],
+        unit: row['unit'],
       );
 
-  Map<String, dynamic> toJson() => {
-        if (id != null) 'id': id,
+  Map<String, dynamic> toDb() => {
         'name': name,
         if (quantity != null && quantity!.isNotEmpty) 'quantity': quantity,
         if (unit != null && unit!.isNotEmpty) 'unit': unit,
@@ -45,27 +44,34 @@ class Recipe {
     this.servings,
   });
 
-  factory Recipe.fromJson(Map<String, dynamic> json) => Recipe(
-        id: json['id'],
-        title: json['title'] ?? '',
-        description: json['description'],
-        ingredients: (json['ingredients'] as List<dynamic>?)
-            ?.map((e) => RecipeIngredient.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        instructions: json['instructions'],
-        prepTimeMinutes: json['prepTimeMinutes'],
-        cookTimeMinutes: json['cookTimeMinutes'],
-        servings: json['servings'],
-      );
+  /// Reads a row of the `recipes` table, with `recipe_ingredients` nested when selected.
+  factory Recipe.fromDb(Map<String, dynamic> row) {
+    final rawIngredients = (row['recipe_ingredients'] as List<dynamic>?)
+        ?.cast<Map<String, dynamic>>()
+        .toList();
+    rawIngredients?.sort((a, b) =>
+        ((a['position'] as num?) ?? 0).compareTo((b['position'] as num?) ?? 0));
+    return Recipe(
+      id: (row['id'] as num?)?.toInt(),
+      title: row['title'] ?? '',
+      description: row['description'],
+      ingredients: rawIngredients?.map(RecipeIngredient.fromDb).toList(),
+      instructions: row['instructions'],
+      prepTimeMinutes: (row['prep_time_minutes'] as num?)?.toInt(),
+      cookTimeMinutes: (row['cook_time_minutes'] as num?)?.toInt(),
+      servings: (row['servings'] as num?)?.toInt(),
+    );
+  }
 
-  Map<String, dynamic> toJson() => {
+  /// The shape the `save_recipe` database function expects.
+  Map<String, dynamic> toDb() => {
         if (id != null) 'id': id,
         'title': title,
-        if (description != null) 'description': description,
-        'ingredients': ingredients?.map((i) => i.toJson()).toList() ?? [],
-        if (instructions != null) 'instructions': instructions,
-        if (prepTimeMinutes != null) 'prepTimeMinutes': prepTimeMinutes,
-        if (cookTimeMinutes != null) 'cookTimeMinutes': cookTimeMinutes,
-        if (servings != null) 'servings': servings,
+        'description': description,
+        'instructions': instructions,
+        'prep_time_minutes': prepTimeMinutes,
+        'cook_time_minutes': cookTimeMinutes,
+        'servings': servings,
+        'ingredients': ingredients?.map((i) => i.toDb()).toList() ?? [],
       };
 }

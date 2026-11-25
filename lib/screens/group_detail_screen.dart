@@ -161,10 +161,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                             Text(group.description!),
                             const SizedBox(height: 8),
                           ],
-                          if (group.user != null) ...[
-                            Text('By ${group.user!.username}', style: Theme.of(context).textTheme.bodySmall),
-                            const SizedBox(height: 16),
-                          ],
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
