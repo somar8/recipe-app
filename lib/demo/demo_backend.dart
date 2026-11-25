@@ -11,6 +11,9 @@ class DemoBackend extends http.BaseClient {
     _seed();
   }
 
+  /// Function names to answer with 404, like a project whose setup is out of date.
+  final missingFunctions = <String>{};
+
   static const _me = '00000000-0000-4000-8000-000000000001';
   static const _anna = '00000000-0000-4000-8000-000000000002';
   static const _bram = '00000000-0000-4000-8000-000000000003';
@@ -63,7 +66,11 @@ class DemoBackend extends http.BaseClient {
   final _collectionShares = <(int, String)>{}; // (group id, friend id)
   var _nextId = 100;
   var _nextRequest = 2;
-  Map<String, dynamic> _metadata = {'username': 'Samer'};
+  Map<String, dynamic> _metadata = {
+    'first_name': 'Samer',
+    'last_name': 'Haddad',
+    'username': 'Samer Haddad',
+  };
 
   void _addRecipe(
     String title,
@@ -374,6 +381,17 @@ class DemoBackend extends http.BaseClient {
 
   (int, Object?) _handle(String method, Uri uri, Object? body) {
     final path = uri.path;
+    // Tests can pretend the project's database is older and lacks some functions.
+    final rpc = path.contains('/rpc/') ? path.split('/rpc/').last : null;
+    if (rpc != null && missingFunctions.contains(rpc)) {
+      return (
+        404,
+        {
+          'code': 'PGRST202',
+          'message': 'Could not find the function public.$rpc',
+        },
+      );
+    }
     // ---- Auth ----
     if (path.endsWith('/auth/v1/token')) return (200, _session);
     if (path.endsWith('/auth/v1/user')) {
@@ -382,7 +400,13 @@ class DemoBackend extends http.BaseClient {
           ..._metadata,
           ...(body['data'] as Map).cast<String, dynamic>(),
         };
-        final name = _metadata['username'];
+        // Like the database: "First Last", else the older single name.
+        final full = [_metadata['first_name'], _metadata['last_name']]
+            .whereType<String>()
+            .map((p) => p.trim())
+            .where((p) => p.isNotEmpty)
+            .join(' ');
+        final name = full.isNotEmpty ? full : _metadata['username'];
         if (name is String) _people[_me]!['display_name'] = name;
       }
       return (200, _user);

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:recipe_app/l10n/l10n.dart';
 import 'package:recipe_app/models/recipe.dart';
 import 'package:recipe_app/theme/app_theme.dart';
 import 'package:recipe_app/widgets/common.dart';
@@ -64,6 +65,8 @@ void main() {
       );
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           theme: AppTheme.light(),
           home: MediaQuery(
             data: MediaQueryData(

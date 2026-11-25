@@ -1,56 +1,56 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../l10n/l10n.dart';
 
-/// Turns a Supabase or network error into a sentence the user can act on.
-String friendlyError(
-  Object error, {
-  String fallback = 'Something went wrong. Please try again.',
-  String forbidden = 'You don\'t have permission to do that.',
-}) {
+/// Turns a Supabase or network error into a sentence the user can act on, in the
+/// app's current language. The database's own messages are recognised and translated.
+String friendlyError(Object error, {String? fallback, String? forbidden}) {
+  final l = tr;
   if (error is AuthException) {
     final msg = error.message.toLowerCase();
     // Checked first: a network error's text holds the request URL (...grant_type=password).
     if (error is AuthRetryableFetchException || _looksOffline(msg)) {
-      return _offline;
+      return l.errorOffline;
     }
-    if (msg.contains('invalid login')) return 'Wrong email or password.';
-    if (msg.contains('email not confirmed')) {
-      return 'Please confirm your email first: open the link we sent you.';
-    }
-    if (msg.contains('already registered')) {
-      return 'An account with this email already exists. Sign in instead.';
-    }
+    if (msg.contains('invalid login')) return l.errorWrongPassword;
+    if (msg.contains('email not confirmed')) return l.errorConfirmEmailFirst;
+    if (msg.contains('already registered')) return l.errorAccountExists;
     if (msg.startsWith('password')) {
-      return error.message; // e.g. "Password should be at least 6 characters."
+      return l
+          .errorPasswordTooShort; // "Password should be at least 6 characters."
     }
     if (msg.contains('rate limit') || error.statusCode == '429') {
-      return 'Too many attempts. Please wait a few minutes and try again.';
+      return l.errorTooManyAttempts;
     }
-    return error.message;
+    return fallback ?? l.errorGeneric;
   }
   if (error is PostgrestException) {
+    final msg = error.message.toLowerCase();
     switch (error.code) {
-      case '22023': // send_friend_request: not an email, or your own
-      case '54000': // too many open requests
-        return error.message;
+      case '22023': // send_friend_request
+        return msg.contains('own email') ? l.errorOwnEmail : l.errorNotAnEmail;
+      case '54000': // limits set by the database
+        if (msg.contains('open requests')) return l.errorTooManyOpenRequests;
+        if (msg.contains('recipes')) return l.errorRecipeLimit;
+        if (msg.contains('collections')) return l.errorCollectionLimit;
+        if (msg.contains('ingredients')) return l.errorIngredientLimit;
+        return l.errorSlowDown;
       case 'P0002':
       case 'PGRST116':
-        return 'Not found. It may have been deleted.';
+        return l.errorNotFound;
       case '23514':
-        return 'Please check the values: times and servings must be above 0, and a title is required.';
+        return l.errorCheckValues;
       case '42501':
-        return forbidden;
+        if (msg.contains('confirm your email')) return l.errorConfirmEmailFirst;
+        return forbidden ?? l.errorForbidden;
     }
-    if (error.code == 'PGRST301' ||
-        error.message.toLowerCase().contains('jwt')) {
-      return 'Your session has expired. Please sign in again.';
+    if (error.code == 'PGRST301' || msg.contains('jwt')) {
+      return l.errorSessionExpired;
     }
-    return fallback;
+    return fallback ?? l.errorGeneric;
   }
-  if (_looksOffline(error.toString())) return _offline;
-  return fallback;
+  if (_looksOffline(error.toString())) return l.errorOffline;
+  return fallback ?? l.errorGeneric;
 }
-
-const _offline = 'No connection. Check your internet and try again.';
 
 bool _looksOffline(String text) {
   final t = text.toLowerCase();

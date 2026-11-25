@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'errors.dart';
@@ -19,13 +20,8 @@ class AuthService extends ChangeNotifier {
       // confirmation link opened in another browser or after it expired.
       onError: (Object e) {
         problem.value = _isLinkProblem(e)
-            ? 'That confirmation link didn\'t work here (it may have expired or been opened '
-                  'in another browser). Your email may still be confirmed: try signing in.'
-            : friendlyError(
-                e,
-                fallback:
-                    'Something went wrong with signing in. Please try again.',
-              );
+            ? tr.confirmLinkFailed
+            : friendlyError(e, fallback: tr.signInProblem);
         notifyListeners();
       },
     );
@@ -46,27 +42,52 @@ class AuthService extends ChangeNotifier {
 
   String? get email => _auth.currentUser?.email;
 
-  String? get username =>
-      (_auth.currentUser?.userMetadata?['username'] as String?) ?? email;
+  Map<String, dynamic> get _meta => _auth.currentUser?.userMetadata ?? const {};
+
+  /// First name; older accounts only had one "username", whose first word is used.
+  String get firstName {
+    final first = (_meta['first_name'] as String?)?.trim();
+    if (first != null && first.isNotEmpty) return first;
+    final old = (_meta['username'] as String?)?.trim() ?? '';
+    return old.contains(' ') ? old.substring(0, old.indexOf(' ')) : old;
+  }
+
+  /// Last name (may be empty).
+  String get lastName {
+    if (_meta['first_name'] != null) {
+      return (_meta['last_name'] as String?)?.trim() ?? '';
+    }
+    final old = (_meta['username'] as String?)?.trim() ?? '';
+    return old.contains(' ') ? old.substring(old.indexOf(' ') + 1).trim() : '';
+  }
+
+  /// "First Last" as friends see it, or the email when no name is set.
+  String? get username {
+    final full = [firstName, lastName].where((p) => p.isNotEmpty).join(' ');
+    return full.isNotEmpty ? full : email;
+  }
 
   Future<void> login(String email, String password) async {
     try {
       await _auth.signInWithPassword(email: email, password: password);
     } catch (e) {
-      throw Exception(
-        friendlyError(e, fallback: 'Could not sign in. Please try again.'),
-      );
+      throw Exception(friendlyError(e, fallback: tr.couldNotSignIn));
     }
   }
 
   /// Returns true when the account is ready to use, or false when the user
   /// must first confirm their email address.
-  Future<bool> register(String username, String email, String password) async {
+  Future<bool> register(
+    String firstName,
+    String lastName,
+    String email,
+    String password,
+  ) async {
     try {
       final res = await _auth.signUp(
         email: email,
         password: password,
-        data: {'username': username},
+        data: _nameData(firstName, lastName),
         // On the web, the confirmation link brings the user back to this site.
         emailRedirectTo: kIsWeb ? Uri.base.origin : null,
       );
@@ -76,27 +97,29 @@ class AuthService extends ChangeNotifier {
       }
       return res.session != null;
     } catch (e) {
-      throw Exception(
-        friendlyError(
-          e,
-          fallback: 'Could not create the account. Please try again.',
-        ),
-      );
+      throw Exception(friendlyError(e, fallback: tr.couldNotCreateAccount));
     }
   }
 
-  /// Changes the display name shown in the app.
-  Future<void> updateName(String name) async {
+  /// Stored as first and last name; "username" too, for screens that read the full name.
+  static Map<String, dynamic> _nameData(String first, String last) => {
+    'first_name': first.trim(),
+    'last_name': last.trim(),
+    'username': [
+      first.trim(),
+      last.trim(),
+    ].where((p) => p.isNotEmpty).join(' '),
+  };
+
+  /// Changes your name as shown in the app and to friends.
+  Future<void> updateName(String firstName, String lastName) async {
     try {
-      await _auth.updateUser(UserAttributes(data: {'username': name}));
+      await _auth.updateUser(
+        UserAttributes(data: _nameData(firstName, lastName)),
+      );
       notifyListeners();
     } catch (e) {
-      throw Exception(
-        friendlyError(
-          e,
-          fallback: 'Could not save your name. Please try again.',
-        ),
-      );
+      throw Exception(friendlyError(e, fallback: tr.couldNotSaveName));
     }
   }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/l10n.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
 import 'food_art.dart';
@@ -14,24 +15,35 @@ abstract final class Breakpoints {
 }
 
 class _Destination {
-  const _Destination(this.label, this.icon, this.selectedIcon);
-  final String label;
+  const _Destination(
+    this.label,
+    this.icon,
+    this.selectedIcon, {
+    this.isAccount = false,
+  });
+  final String Function(AppLocalizations l) label;
   final IconData icon;
   final IconData selectedIcon;
+  final bool isAccount;
 }
 
-const _destinations = [
+final _destinations = [
   _Destination(
-    'Recipes',
+    (l) => l.recipes,
     Icons.restaurant_menu_outlined,
     Icons.restaurant_menu,
   ),
   _Destination(
-    'Collections',
+    (l) => l.collections,
     Icons.folder_special_outlined,
     Icons.folder_special,
   ),
-  _Destination('Account', Icons.person_outline, Icons.person),
+  _Destination(
+    (l) => l.account,
+    Icons.person_outline,
+    Icons.person,
+    isAccount: true,
+  ),
 ];
 
 /// The frame around the three main tabs: a bottom bar on phones, a side rail on
@@ -58,13 +70,11 @@ class _AppShellState extends State<AppShell> {
   /// Account icon with the number of waiting friend requests.
   Widget _icon(_Destination d, {required bool selected}) {
     final icon = Icon(selected ? d.selectedIcon : d.icon);
-    if (d.label != 'Account') return icon;
+    if (!d.isAccount) return icon;
     return ValueListenableBuilder<int>(
       valueListenable: FriendService().waitingCount,
       builder: (_, count, _) => Semantics(
-        label: count == 0
-            ? null
-            : '$count friend ${count == 1 ? 'request' : 'requests'} waiting',
+        label: count == 0 ? null : context.l10n.friendRequestsWaiting(count),
         child: Badge(
           isLabelVisible: count > 0,
           label: Text('$count'),
@@ -94,7 +104,7 @@ class _AppShellState extends State<AppShell> {
               NavigationDestination(
                 icon: _icon(d, selected: false),
                 selectedIcon: _icon(d, selected: true),
-                label: d.label,
+                label: d.label(context.l10n),
               ),
           ],
         ),
@@ -124,7 +134,7 @@ class _AppShellState extends State<AppShell> {
                         const AppLogo(size: 40),
                         const SizedBox(width: Gap.md),
                         Text(
-                          'Recipe App',
+                          context.l10n.appName,
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                       ],
@@ -136,7 +146,7 @@ class _AppShellState extends State<AppShell> {
                 NavigationRailDestination(
                   icon: _icon(d, selected: false),
                   selectedIcon: _icon(d, selected: true),
-                  label: Text(d.label),
+                  label: Text(d.label(context.l10n)),
                 ),
             ],
           ),

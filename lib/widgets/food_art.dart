@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
-/// Picks an icon from words in a recipe title (English and Dutch), so a recipe gets a
+/// Picks an icon from words in a recipe title (English, Dutch, German and Arabic), so a recipe gets a
 /// fitting picture without photos. Unknown titles get a general food icon.
 const _iconsByWord = <(List<String>, IconData)>[
   (
@@ -14,11 +14,52 @@ const _iconsByWord = <(List<String>, IconData)>[
       'croissant',
       'bun',
       'broodje',
+      'pfannkuchen',
+      'brot',
+      'brötchen',
+      'فطائر',
+      'فطيرة',
+      'خبز',
+      'مناقيش',
+      'كرواسون',
     ],
     Icons.bakery_dining,
   ),
-  (['soup', 'soep', 'stew', 'stoof', 'chili', 'curry'], Icons.soup_kitchen),
-  (['salad', 'salade', 'bowl', 'vegan', 'veggie', 'groente'], Icons.eco),
+  (
+    [
+      'soup',
+      'soep',
+      'stew',
+      'stoof',
+      'chili',
+      'curry',
+      'suppe',
+      'eintopf',
+      'شوربة',
+      'شوربه',
+      'حساء',
+      'يخنة',
+      'طاجن',
+    ],
+    Icons.soup_kitchen,
+  ),
+  (
+    [
+      'salad',
+      'salade',
+      'bowl',
+      'vegan',
+      'veggie',
+      'groente',
+      'salat',
+      'gemüse',
+      'سلطة',
+      'فتوش',
+      'تبولة',
+      'خضار',
+    ],
+    Icons.eco,
+  ),
   (
     [
       'pasta',
@@ -29,16 +70,45 @@ const _iconsByWord = <(List<String>, IconData)>[
       'lasagna',
       'lasagne',
       'macaroni',
+      'nudel',
+      'spätzle',
+      'معكرونة',
+      'مكرونة',
+      'باستا',
+      'لازانيا',
     ],
     Icons.ramen_dining,
   ),
-  (['pizza'], Icons.local_pizza),
+  (['pizza', 'بيتزا'], Icons.local_pizza),
   (
-    ['cake', 'taart', 'muffin', 'cookie', 'koek', 'brownie', 'dessert', 'pie'],
+    [
+      'cake',
+      'taart',
+      'muffin',
+      'cookie',
+      'koek',
+      'brownie',
+      'dessert',
+      'pie',
+      'kuchen',
+      'torte',
+      'keks',
+      'plätzchen',
+      'كيك',
+      'كعك',
+      'كعكة',
+      'حلوى',
+      'بسبوسة',
+      'كنافة',
+      'معمول',
+    ],
     Icons.cake,
   ),
-  (['ice', 'ijs', 'sorbet'], Icons.icecream),
-  (['egg', 'ei', 'eieren', 'omelet', 'omelette', 'frittata'], Icons.egg_alt),
+  (['ice', 'ijs', 'sorbet', 'eis', 'بوظة', 'آيس'], Icons.icecream),
+  (
+    ['egg', 'ei', 'eieren', 'omelet', 'omelette', 'frittata', 'بيض', 'عجة'],
+    Icons.egg_alt,
+  ),
   (
     [
       'fish',
@@ -50,13 +120,66 @@ const _iconsByWord = <(List<String>, IconData)>[
       'shrimp',
       'garnaal',
       'sushi',
+      'fisch',
+      'lachs',
+      'thunfisch',
+      'garnele',
+      'سمك',
+      'سلمون',
+      'تونة',
+      'روبيان',
+      'جمبري',
+      'صيادية',
     ],
     Icons.set_meal,
   ),
-  (['burger', 'sandwich', 'wrap', 'taco', 'burrito'], Icons.lunch_dining),
-  (['rice', 'rijst', 'risotto', 'paella', 'biryani'], Icons.rice_bowl),
   (
-    ['kebab', 'skewer', 'spies', 'satay', 'saté', 'bbq', 'grill'],
+    [
+      'burger',
+      'sandwich',
+      'wrap',
+      'taco',
+      'burrito',
+      'برجر',
+      'شطيرة',
+      'ساندويش',
+      'شاورما',
+      'فلافل',
+    ],
+    Icons.lunch_dining,
+  ),
+  (
+    [
+      'rice',
+      'rijst',
+      'risotto',
+      'paella',
+      'biryani',
+      'reis',
+      'أرز',
+      'رز',
+      'كبسة',
+      'برياني',
+      'مندي',
+      'مقلوبة',
+    ],
+    Icons.rice_bowl,
+  ),
+  (
+    [
+      'kebab',
+      'skewer',
+      'spies',
+      'satay',
+      'saté',
+      'bbq',
+      'grill',
+      'spieß',
+      'كباب',
+      'شيش',
+      'مشاوي',
+      'كفتة',
+    ],
     Icons.kebab_dining,
   ),
   (
@@ -72,18 +195,57 @@ const _iconsByWord = <(List<String>, IconData)>[
       'lam',
       'meat',
       'vlees',
+      'hähnchen',
+      'huhn',
+      'rind',
+      'schwein',
+      'fleisch',
+      'دجاج',
+      'فراخ',
+      'لحم',
+      'ستيك',
     ],
     Icons.outdoor_grill,
   ),
-  (['coffee', 'koffie', 'tea', 'thee', 'latte'], Icons.local_cafe),
-  (['smoothie', 'juice', 'sap', 'cocktail', 'drink', 'shake'], Icons.local_bar),
+  (
+    [
+      'coffee',
+      'koffie',
+      'tea',
+      'thee',
+      'latte',
+      'kaffee',
+      'tee',
+      'قهوة',
+      'شاي',
+    ],
+    Icons.local_cafe,
+  ),
+  (
+    [
+      'smoothie',
+      'juice',
+      'sap',
+      'cocktail',
+      'drink',
+      'shake',
+      'saft',
+      'عصير',
+      'مشروب',
+    ],
+    Icons.local_bar,
+  ),
 ];
 
 IconData foodIconFor(String title) {
   final titleWords = title
       .toLowerCase()
-      .split(RegExp(r'[^a-z\u00e0-\u00ff]+'))
-      .where((w) => w.isNotEmpty);
+      .split(RegExp(r'[^a-z\u00df-\u00ff\u0621-\u064a]+'))
+      .where((w) => w.isNotEmpty)
+      // Arabic "the" (ال, also بال/وال/لل) is written onto the word: "الدجاج" is chicken.
+      .map(
+        (w) => w.replaceFirst(RegExp(r'^(?:وال|بال|فال|كال|ال|لل)(?=..)'), ''),
+      );
   // A title word matches when it starts with a keyword ("pancakes"), or ends with one of
   // 4+ letters, for Dutch compounds ("kipsoep" is a soup). "rice" never matches "ice".
   bool matches(String word, String key) =>

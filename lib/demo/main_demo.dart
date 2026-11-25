@@ -9,6 +9,7 @@ import '../theme/app_theme.dart';
 import '../main.dart' show RecipeApp;
 import '../services/auth_service.dart';
 import '../services/theme_settings.dart';
+import '../services/locale_settings.dart';
 import 'demo_backend.dart';
 
 Future<void> main() async {
@@ -23,6 +24,7 @@ Future<void> main() async {
   AuthService().init();
   Recipe.currentUserId = () => Supabase.instance.client.auth.currentUser?.id;
   ThemeSettings().init();
+  await LocaleSettings().init();
   await Supabase.instance.client.auth.signInWithPassword(
     email: 'demo@example.com',
     password: 'demo-only',

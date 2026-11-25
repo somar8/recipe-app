@@ -448,3 +448,17 @@ reset role;
 select pg_temp.check((select count(*) = 0 from pg_class c
   where c.relname in ('rate_events') and has_table_privilege('authenticated', c.oid, 'select')),
   'nobody can read the rate log directly');
+
+-- =====================================================================
+-- First and last name
+-- =====================================================================
+reset role;
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('c0000000-0000-0000-0000-000000000001', 'lina@example.com', '{"first_name":"Lina","last_name":"Haddad"}');
+select pg_temp.check((select display_name = 'Lina Haddad' from public.recipe_profiles where id = 'c0000000-0000-0000-0000-000000000001'),
+  'the display name is first and last name');
+update auth.users set raw_user_meta_data = '{"first_name":"Lina","last_name":""}' where id = 'c0000000-0000-0000-0000-000000000001';
+select pg_temp.check((select display_name = 'Lina' from public.recipe_profiles where id = 'c0000000-0000-0000-0000-000000000001'),
+  'a first name alone works, and changes show at once');
+select pg_temp.check(public.display_name_of('{"username":"Old Name"}', 'x@y.z') = 'Old Name'
+  and public.display_name_of('{}', 'sam@y.z') = 'sam', 'older accounts keep their name, or fall back to the email');

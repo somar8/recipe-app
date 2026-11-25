@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/l10n.dart';
 import '../services/data_changes.dart';
 import '../widgets/skeleton.dart';
 import 'package:go_router/go_router.dart';
@@ -137,8 +138,8 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
           SnackBar(
             persist:
                 false, // otherwise a bar with a button never closes by itself
-            content: Text('Deleted "${r.title}"'),
-            action: SnackBarAction(label: 'Undo', onPressed: () {}),
+            content: Text(context.l10n.deletedTitle(r.title)),
+            action: SnackBarAction(label: context.l10n.undo, onPressed: () {}),
             duration: const Duration(seconds: 5),
           ),
         )
@@ -166,13 +167,12 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
 
   String get _greeting {
     final h = DateTime.now().hour;
+    final l = context.l10n;
     final part = h < 12
-        ? 'Good morning'
-        : (h < 18 ? 'Good afternoon' : 'Good evening');
-    final name = AuthService().username;
-    return (name == null || name.contains('@'))
-        ? part
-        : '$part, ${name.split(' ').first}';
+        ? l.goodMorning
+        : (h < 18 ? l.goodAfternoon : l.goodEvening);
+    final name = AuthService().firstName;
+    return name.isEmpty ? part : l.greetingWithName(part, name);
   }
 
   @override
@@ -183,7 +183,7 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
           : FloatingActionButton.extended(
               onPressed: _create,
               icon: const Icon(Icons.add),
-              label: const Text('New recipe'),
+              label: Text(context.l10n.newRecipe),
             ),
       body: SafeArea(
         bottom: false,
@@ -194,10 +194,9 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
             : _recipes.isEmpty
             ? EmptyState(
                 icon: Icons.menu_book_outlined,
-                title: 'Add your first recipe',
-                message:
-                    'Save the dishes you love, with ingredients and steps, and find them in seconds.',
-                actionLabel: 'New recipe',
+                title: context.l10n.addFirstRecipe,
+                message: context.l10n.addFirstRecipeMessage,
+                actionLabel: context.l10n.newRecipe,
                 onAction: _create,
               )
             : RefreshIndicator(
@@ -227,26 +226,32 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
                     _greeting,
                     style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),
                   ),
-                  const SizedBox(height: 2),
+                  SizedBox(height: 2),
                   Row(
                     children: [
                       Expanded(
-                        child: Text('Your recipes', style: t.headlineMedium),
+                        child: Text(
+                          context.l10n.yourRecipes,
+                          style: t.headlineMedium,
+                        ),
                       ),
                       PopupMenuButton<_Sort>(
-                        tooltip: 'Sort',
-                        icon: const Icon(Icons.sort),
+                        tooltip: context.l10n.sort,
+                        icon: Icon(Icons.sort),
                         initialValue: _sort,
                         onSelected: (s) => setState(() => _sort = s),
-                        itemBuilder: (_) => const [
+                        itemBuilder: (_) => [
                           PopupMenuItem(
                             value: _Sort.newest,
-                            child: Text('Newest first'),
+                            child: Text(context.l10n.newestFirst),
                           ),
-                          PopupMenuItem(value: _Sort.az, child: Text('A to Z')),
+                          PopupMenuItem(
+                            value: _Sort.az,
+                            child: Text(context.l10n.aToZ),
+                          ),
                           PopupMenuItem(
                             value: _Sort.quickest,
-                            child: Text('Quickest first'),
+                            child: Text(context.l10n.quickestFirst),
                           ),
                         ],
                       ),
@@ -258,13 +263,12 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
                     onChanged: (v) => setState(() => _query = v),
                     textInputAction: TextInputAction.search,
                     decoration: InputDecoration(
-                      hintText:
-                          'Search ${_recipes.length} recipes or ingredients',
+                      hintText: context.l10n.searchNRecipes(_recipes.length),
                       prefixIcon: const Icon(Icons.search),
                       suffixIcon: _query.isEmpty
                           ? null
                           : IconButton(
-                              tooltip: 'Clear search',
+                              tooltip: context.l10n.clearSearch,
                               icon: const Icon(Icons.close),
                               onPressed: () {
                                 _searchController.clear();
@@ -292,11 +296,16 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
               hasScrollBody: false,
               child: EmptyState(
                 icon: Icons.search_off,
-                title: 'No matches',
+                title: context.l10n.noMatches,
                 message: _filtering
-                    ? 'Nothing fits "${[if (_owner != OwnerFilter.all) _owner.label, if (_time != TimeFilter.any) _time.label].join(' · ')}". Try another filter, or show all recipes.'
-                    : 'Try another word, or show all recipes.',
-                actionLabel: 'Show all',
+                    ? context.l10n.nothingFits(
+                        [
+                          if (_owner != OwnerFilter.all) _owner.label,
+                          if (_time != TimeFilter.any) _time.label,
+                        ].join(' · '),
+                      )
+                    : context.l10n.tryAnotherWord,
+                actionLabel: context.l10n.showAll,
                 onAction: () {
                   _searchController.clear();
                   setState(() {
@@ -390,7 +399,7 @@ class _FilterChips extends StatelessWidget {
             TextButton.icon(
               onPressed: onClear,
               icon: const Icon(Icons.close, size: 18),
-              label: const Text('Clear'),
+              label: Text(context.l10n.clear),
             ),
         ]),
       ],

@@ -6,6 +6,16 @@ class RecipeIngredient {
 
   RecipeIngredient({this.id, required this.name, this.quantity, this.unit});
 
+  /// "200 g" for showing next to the name. Wrapped in a direction isolate so it reads
+  /// the right way inside Arabic text too: "200 g" stays "200 g", not "g 200".
+  String get amountText {
+    final text = [
+      quantity,
+      unit,
+    ].where((s) => s != null && s.trim().isNotEmpty).join(' ');
+    return text.isEmpty ? '' : '\u2068$text\u2069';
+  }
+
   factory RecipeIngredient.fromDb(Map<String, dynamic> row) => RecipeIngredient(
     id: (row['id'] as num?)?.toInt(),
     name: row['name'] ?? '',

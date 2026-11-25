@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/friends.dart';
@@ -24,9 +25,7 @@ class FriendService {
           .map((r) => Friend.fromDb((r as Map).cast<String, dynamic>()))
           .toList();
     } catch (e) {
-      throw Exception(
-        friendlyError(e, fallback: 'Failed to load your friends.'),
-      );
+      throw Exception(friendlyError(e, fallback: tr.failedLoadFriends));
     }
   }
 
@@ -46,9 +45,7 @@ class FriendService {
       waitingCount.value = list.length;
       return list;
     } catch (e) {
-      throw Exception(
-        friendlyError(e, fallback: 'Failed to load friend requests.'),
-      );
+      throw Exception(friendlyError(e, fallback: tr.failedLoadRequests));
     }
   }
 
@@ -59,9 +56,7 @@ class FriendService {
           .map((r) => SentRequest.fromDb((r as Map).cast<String, dynamic>()))
           .toList();
     } catch (e) {
-      throw Exception(
-        friendlyError(e, fallback: 'Failed to load your sent requests.'),
-      );
+      throw Exception(friendlyError(e, fallback: tr.failedLoadSent));
     }
   }
 
@@ -83,9 +78,7 @@ class FriendService {
           .map((r) => PersonMatch.fromDb((r as Map).cast<String, dynamic>()))
           .toList();
     } catch (e) {
-      throw Exception(
-        friendlyError(e, fallback: 'Search isn\'t working right now.'),
-      );
+      throw Exception(friendlyError(e, fallback: tr.searchNotWorking));
     }
   }
 
@@ -96,12 +89,7 @@ class FriendService {
       await _db.rpc('send_friend_request_to', params: {'person': personId});
       markDataChanged(); // may have made you friends at once
     } catch (e) {
-      throw Exception(
-        friendlyError(
-          e,
-          fallback: 'Could not send the request. Please try again.',
-        ),
-      );
+      throw Exception(friendlyError(e, fallback: tr.couldNotSendRequest));
     }
   }
 
@@ -109,12 +97,7 @@ class FriendService {
     try {
       await _db.rpc('send_friend_request', params: {'email': email.trim()});
     } catch (e) {
-      throw Exception(
-        friendlyError(
-          e,
-          fallback: 'Could not send the request. Please try again.',
-        ),
-      );
+      throw Exception(friendlyError(e, fallback: tr.couldNotSendRequest));
     }
   }
 
@@ -124,9 +107,7 @@ class FriendService {
       markDataChanged();
       waitingCount.value = (waitingCount.value - 1).clamp(0, 1 << 30);
     } catch (e) {
-      throw Exception(
-        friendlyError(e, fallback: 'Could not accept the request.'),
-      );
+      throw Exception(friendlyError(e, fallback: tr.couldNotAccept));
     }
   }
 
@@ -138,9 +119,7 @@ class FriendService {
         waitingCount.value = (waitingCount.value - 1).clamp(0, 1 << 30);
       }
     } catch (e) {
-      throw Exception(
-        friendlyError(e, fallback: 'Could not remove the request.'),
-      );
+      throw Exception(friendlyError(e, fallback: tr.couldNotRemoveRequest));
     }
   }
 
@@ -155,9 +134,7 @@ class FriendService {
           );
       markDataChanged();
     } catch (e) {
-      throw Exception(
-        friendlyError(e, fallback: 'Could not remove this friend.'),
-      );
+      throw Exception(friendlyError(e, fallback: tr.couldNotRemoveFriend));
     }
   }
 }

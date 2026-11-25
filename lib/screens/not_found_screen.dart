@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/l10n.dart';
 import 'package:go_router/go_router.dart';
 import '../widgets/common.dart';
 
@@ -12,10 +13,9 @@ class NotFoundScreen extends StatelessWidget {
       appBar: AppBar(),
       body: EmptyState(
         icon: Icons.search_off,
-        title: 'Page not found',
-        message:
-            'This link doesn\'t lead anywhere. The recipe may have been deleted.',
-        actionLabel: 'Go to your recipes',
+        title: context.l10n.pageNotFound,
+        message: context.l10n.pageNotFoundMessage,
+        actionLabel: context.l10n.goToYourRecipes,
         actionIcon: Icons.restaurant_menu,
         onAction: () => context.go('/recipes'),
       ),

@@ -6,9 +6,12 @@ import 'models/recipe.dart';
 import 'config.dart';
 import 'services/auth_service.dart';
 import 'services/theme_settings.dart';
+import 'services/locale_settings.dart';
+import 'l10n/l10n.dart';
 import 'widgets/app_shell.dart';
 import 'screens/account_screen.dart';
 import 'screens/friends_screen.dart';
+import 'screens/profile_screen.dart';
 import 'screens/not_found_screen.dart';
 import 'theme/app_theme.dart';
 import 'screens/login_screen.dart';
@@ -36,6 +39,7 @@ Future<void> main() async {
   AuthService().init();
   Recipe.currentUserId = () => Supabase.instance.client.auth.currentUser?.id;
   ThemeSettings().init();
+  await LocaleSettings().init();
   runApp(const RecipeApp());
 }
 
@@ -152,6 +156,10 @@ final _router = GoRouter(
                   path: 'friends',
                   builder: (_, _) => const FriendsScreen(),
                 ),
+                GoRoute(
+                  path: 'details',
+                  builder: (_, _) => const ProfileScreen(),
+                ),
               ],
             ),
           ],
@@ -171,15 +179,22 @@ class RecipeApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: ThemeSettings(),
-      builder: (_, _) => MaterialApp.router(
-        title: 'Recipe App',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.light(),
-        darkTheme: AppTheme.dark(),
-        themeMode: ThemeSettings().mode,
-        routerConfig: _router,
-      ),
+      listenable: Listenable.merge([ThemeSettings(), LocaleSettings()]),
+      builder: (_, _) {
+        final locale = LocaleSettings().effective;
+        return MaterialApp.router(
+          onGenerateTitle: (context) => context.l10n.appName,
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.light(locale),
+          darkTheme: AppTheme.dark(locale),
+          themeMode: ThemeSettings().mode,
+          // The chosen language, or the phone's when it's one the app speaks.
+          locale: locale,
+          supportedLocales: LocaleSettings.supported,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          routerConfig: _router,
+        );
+      },
     );
   }
 }

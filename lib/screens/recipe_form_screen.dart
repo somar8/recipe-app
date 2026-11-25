@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/l10n.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../models/recipe.dart';
@@ -6,6 +7,7 @@ import '../services/recipe_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_shell.dart';
 import '../widgets/common.dart';
+import '../widgets/paste_ingredients_sheet.dart';
 
 /// One ingredient line in the form. The key keeps the row's identity while reordering.
 class _IngredientFields {
@@ -147,6 +149,28 @@ class _RecipeFormScreenState extends State<RecipeFormScreen> {
     );
   }
 
+  /// Paste a whole ingredient list at once; it becomes one row per ingredient.
+  Future<void> _pasteIngredients() async {
+    final found = await showModalBottomSheet<List<RecipeIngredient>>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => const PasteIngredientsSheet(),
+    );
+    if (found == null || found.isEmpty || !mounted) return;
+    setState(() {
+      // Still only empty rows? Replace them; otherwise add below what's there.
+      if (_ingredients.every((i) => i.isEmpty)) {
+        for (final row in _ingredients) {
+          row.dispose();
+        }
+        _ingredients.clear();
+      }
+      _ingredients.addAll(found.map(_IngredientFields.new));
+    });
+    showMessage(context, context.l10n.addedIngredients(found.length));
+  }
+
   void _removeIngredient(int index) {
     setState(() {
       _ingredients.removeAt(index).dispose();
@@ -215,9 +239,9 @@ class _RecipeFormScreenState extends State<RecipeFormScreen> {
   Future<void> _confirmLeave() async {
     final leave = await confirmDialog(
       context,
-      title: 'Discard changes?',
-      message: 'What you typed in this recipe won\'t be saved.',
-      confirmLabel: 'Discard',
+      title: context.l10n.discardChangesQuestion,
+      message: context.l10n.discardRecipeMessage,
+      confirmLabel: context.l10n.discard,
     );
     if (leave && mounted) {
       _savedSnapshot = _snapshot();
@@ -228,7 +252,7 @@ class _RecipeFormScreenState extends State<RecipeFormScreen> {
   String? _positiveNumber(String? v) {
     if (v == null || v.isEmpty) return null;
     final n = int.tryParse(v);
-    return (n == null || n <= 0) ? 'Above 0' : null;
+    return (n == null || n <= 0) ? context.l10n.aboveZero : null;
   }
 
   @override
@@ -242,16 +266,18 @@ class _RecipeFormScreenState extends State<RecipeFormScreen> {
         appBar: AppBar(
           leading: IconButton(
             icon: const Icon(Icons.close),
-            tooltip: 'Close',
+            tooltip: context.l10n.close,
             onPressed: () => context.canPop()
                 ? Navigator.maybePop(context)
                 : _confirmOrClose(),
           ),
-          title: Text(_isEdit ? 'Edit recipe' : 'New recipe'),
+          title: Text(
+            _isEdit ? context.l10n.editRecipe : context.l10n.newRecipe,
+          ),
         ),
         body: _loadFailed
             ? ErrorState(
-                message: _error ?? 'Could not load this.',
+                message: _error ?? context.l10n.couldNotLoad,
                 onRetry: () {
                   setState(() => _loadFailed = false);
                   _load();
@@ -296,7 +322,11 @@ class _RecipeFormScreenState extends State<RecipeFormScreen> {
                                   strokeWidth: 2,
                                 ),
                               )
-                            : Text(_isEdit ? 'Save changes' : 'Save recipe'),
+                            : Text(
+                                _isEdit
+                                    ? context.l10n.saveChanges
+                                    : context.l10n.saveRecipe,
+                              ),
                       ),
                     ),
                   ),
@@ -328,7 +358,15 @@ class _RecipeFormScreenState extends State<RecipeFormScreen> {
       decoration: InputDecoration(
         labelText: label,
         suffixText: suffix,
-        prefixIcon: Icon(icon),
+        // A narrower icon slot leaves room for longer labels ("Voorbereiden", "Vorbereiten").
+        prefixIcon: Padding(
+          padding: const EdgeInsetsDirectional.only(start: 12, end: 8),
+          child: Icon(icon, size: 20),
+        ),
+        prefixIconConstraints: const BoxConstraints(
+          minWidth: 40,
+          minHeight: 40,
+        ),
       ),
     );
 
@@ -363,11 +401,11 @@ class _RecipeFormScreenState extends State<RecipeFormScreen> {
           textInputAction: TextInputAction.next,
           style: t.titleMedium,
           validator: (v) => (v == null || v.trim().isEmpty)
-              ? 'Give your recipe a name'
+              ? context.l10n.giveRecipeName
               : null,
-          decoration: const InputDecoration(
-            labelText: 'Recipe name',
-            hintText: 'Fluffy pancakes',
+          decoration: InputDecoration(
+            labelText: context.l10n.recipeName,
+            hintText: context.l10n.recipeNameExample,
           ),
         ),
         const SizedBox(height: Gap.md),
@@ -376,30 +414,30 @@ class _RecipeFormScreenState extends State<RecipeFormScreen> {
           minLines: 1,
           maxLines: 3,
           textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(
-            labelText: 'Short description',
-            hintText: 'Sunday breakfast classic',
+          decoration: InputDecoration(
+            labelText: context.l10n.shortDescription,
+            hintText: context.l10n.shortDescriptionExample,
           ),
         ),
 
-        const SectionHeader(title: 'Time and servings'),
+        SectionHeader(title: context.l10n.timeAndServings),
         LayoutBuilder(
           builder: (context, box) {
             final prep = numberField(
               _prep,
-              'Prep',
-              'min',
+              context.l10n.prep,
+              context.l10n.minutesShort,
               Icons.timer_outlined,
             );
             final cook = numberField(
               _cook,
-              'Cook',
-              'min',
+              context.l10n.cook,
+              context.l10n.minutesShort,
               Icons.local_fire_department_outlined,
             );
             final serves = numberField(
               _servings,
-              'Serves',
+              context.l10n.serves,
               '',
               Icons.people_outline,
             );
@@ -433,14 +471,14 @@ class _RecipeFormScreenState extends State<RecipeFormScreen> {
         ),
 
         SectionHeader(
-          title: 'Ingredients',
+          title: context.l10n.ingredients,
           trailing: Text(
             '${_ingredients.where((i) => !i.isEmpty).length}',
             style: t.titleMedium?.copyWith(color: c.onSurfaceVariant),
           ),
         ),
         Text(
-          'Drag the handle to change the order.',
+          context.l10n.dragToReorderHint,
           style: t.bodySmall?.copyWith(color: c.onSurfaceVariant),
         ),
         const SizedBox(height: Gap.sm),
@@ -461,26 +499,32 @@ class _RecipeFormScreenState extends State<RecipeFormScreen> {
             onSubmitted: i == _ingredients.length - 1 ? _addIngredient : null,
           ),
         ),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: _addIngredient,
-            icon: const Icon(Icons.add),
-            label: const Text('Add ingredient'),
-          ),
+        Wrap(
+          spacing: Gap.sm,
+          children: [
+            TextButton.icon(
+              onPressed: _addIngredient,
+              icon: const Icon(Icons.add),
+              label: Text(context.l10n.addIngredient),
+            ),
+            TextButton.icon(
+              onPressed: _pasteIngredients,
+              icon: const Icon(Icons.content_paste),
+              label: Text(context.l10n.pasteAList),
+            ),
+          ],
         ),
 
-        const SectionHeader(title: 'Steps'),
+        SectionHeader(title: context.l10n.steps),
         TextFormField(
           controller: _instructions,
           minLines: 6,
           maxLines: null,
           keyboardType: TextInputType.multiline,
           textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(
-            hintText:
-                'Whisk the flour, milk and eggs until smooth.\nRest the batter for 10 minutes.',
-            helperText: 'One step per line. They\'re numbered for you.',
+          decoration: InputDecoration(
+            hintText: context.l10n.stepsExample,
+            helperText: context.l10n.stepsHelper,
             alignLabelWithHint: true,
           ),
         ),
@@ -515,13 +559,16 @@ class _IngredientEditor extends StatelessWidget {
       onChanged: (_) => onChanged(),
       textCapitalization: TextCapitalization.sentences,
       textInputAction: TextInputAction.next,
-      decoration: const InputDecoration(hintText: 'Ingredient', isDense: true),
+      decoration: InputDecoration(
+        hintText: context.l10n.ingredient,
+        isDense: true,
+      ),
     );
     final qty = TextField(
       controller: fields.quantity,
       onChanged: (_) => onChanged(),
       textInputAction: TextInputAction.next,
-      decoration: const InputDecoration(hintText: 'Amount', isDense: true),
+      decoration: InputDecoration(hintText: context.l10n.amount, isDense: true),
     );
     final unit = TextField(
       controller: fields.unit,
@@ -530,7 +577,7 @@ class _IngredientEditor extends StatelessWidget {
           ? TextInputAction.done
           : TextInputAction.next,
       onSubmitted: onSubmitted == null ? null : (_) => onSubmitted!(),
-      decoration: const InputDecoration(hintText: 'Unit', isDense: true),
+      decoration: InputDecoration(hintText: context.l10n.unit, isDense: true),
     );
 
     return Padding(
@@ -547,7 +594,7 @@ class _IngredientEditor extends StatelessWidget {
               child: Icon(
                 Icons.drag_indicator,
                 color: c.outline,
-                semanticLabel: 'Drag to reorder',
+                semanticLabel: context.l10n.dragToReorder,
               ),
             ),
           ),
@@ -584,7 +631,7 @@ class _IngredientEditor extends StatelessWidget {
           ),
           IconButton(
             icon: const Icon(Icons.remove_circle_outline),
-            tooltip: 'Remove ingredient',
+            tooltip: context.l10n.removeIngredient,
             color: c.onSurfaceVariant,
             onPressed: onRemove,
           ),

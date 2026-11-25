@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../l10n/l10n.dart';
 import '../models/friends.dart';
 import '../services/friend_service.dart';
 import '../theme/app_theme.dart';
@@ -30,32 +31,33 @@ class _FriendsScreenState extends State<FriendsScreen> {
     _load();
   }
 
+  /// Loads friends, waiting requests and sent requests separately: if one list fails,
+  /// the others and the search still work, and a small warning says what's missing.
   Future<void> _load() async {
-    // After an error, show the loading placeholder again instead of empty lists.
-    setState(() {
-      if (_error != null) _loading = true;
-      _error = null;
-    });
-    try {
-      final results = await Future.wait([
-        _service.friends(),
-        _service.incoming(),
-        _service.sent(),
-      ]);
-      if (!mounted) return;
-      setState(() {
-        _friends = results[0] as List<Friend>;
-        _incoming = results[1] as List<IncomingRequest>;
-        _sent = results[2] as List<SentRequest>;
-        _loading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = errorText(e);
-        _loading = false;
-      });
+    setState(() => _error = null);
+    final problems = <String>[];
+    Future<T> part<T>(Future<T> Function() load, T fallback) async {
+      try {
+        return await load();
+      } catch (e) {
+        problems.add(errorText(e));
+        return fallback;
+      }
     }
+
+    final results = await Future.wait([
+      part<List<Friend>>(_service.friends, _friends),
+      part<List<IncomingRequest>>(_service.incoming, _incoming),
+      part<List<SentRequest>>(_service.sent, _sent),
+    ]);
+    if (!mounted) return;
+    setState(() {
+      _friends = results[0] as List<Friend>;
+      _incoming = results[1] as List<IncomingRequest>;
+      _sent = results[2] as List<SentRequest>;
+      _error = problems.isEmpty ? null : problems.toSet().join(' ');
+      _loading = false;
+    });
   }
 
   Future<void> _run(Future<void> Function() action, String done) async {
@@ -72,12 +74,16 @@ class _FriendsScreenState extends State<FriendsScreen> {
   Future<void> _unfriend(Friend f) async {
     final ok = await confirmDialog(
       context,
-      title: 'Remove ${f.name}?',
-      message:
-          'You\'ll stop seeing each other\'s shared recipes and collections. You can send a new request later.',
-      confirmLabel: 'Remove',
+      title: context.l10n.removeFriendQuestion(f.name),
+      message: context.l10n.removeFriendMessage,
+      confirmLabel: context.l10n.remove,
     );
-    if (ok) await _run(() => _service.unfriend(f.id), 'Removed ${f.name}');
+    if (ok && mounted) {
+      await _run(
+        () => _service.unfriend(f.id),
+        context.l10n.removedName(f.name),
+      );
+    }
   }
 
   @override
@@ -85,11 +91,9 @@ class _FriendsScreenState extends State<FriendsScreen> {
     final t = Theme.of(context).textTheme;
     final c = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: const Text('Friends')),
+      appBar: AppBar(title: Text(context.l10n.friends)),
       body: _loading
           ? const ListPageSkeleton(cards: 3, showSearch: false)
-          : _error != null
-          ? ErrorState(message: _error!, onRetry: _load)
           : RefreshIndicator(
               onRefresh: _load,
               child: ListView(
@@ -108,10 +112,51 @@ class _FriendsScreenState extends State<FriendsScreen> {
                         // ---- Add a friend ----
                         _AddFriendCard(onChanged: _load),
 
+                        // ---- Something didn't load: say so, keep the rest usable ----
+                        if (_error != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: Gap.md),
+                            child: Container(
+                              padding: const EdgeInsetsDirectional.fromSTEB(
+                                Gap.md,
+                                Gap.sm,
+                                Gap.xs,
+                                Gap.sm,
+                              ),
+                              decoration: BoxDecoration(
+                                color: c.errorContainer,
+                                borderRadius: BorderRadius.circular(Corners.sm),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.error_outline,
+                                    color: c.onErrorContainer,
+                                  ),
+                                  const SizedBox(width: Gap.sm),
+                                  Expanded(
+                                    child: Text(
+                                      context.l10n.someListsFailed(
+                                        _error ?? '',
+                                      ),
+                                      style: TextStyle(
+                                        color: c.onErrorContainer,
+                                      ),
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: _load,
+                                    child: Text(context.l10n.tryAgain),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+
                         // ---- Waiting for you ----
                         if (_incoming.isNotEmpty) ...[
                           SectionHeader(
-                            title: 'Waiting for you',
+                            title: context.l10n.waitingForYou,
                             trailing: _CountBadge(_incoming.length),
                           ),
                           for (final r in _incoming)
@@ -126,7 +171,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
                                     children: [
                                       _PersonRow(
                                         person: r.from,
-                                        subtitle: 'wants to be friends',
+                                        subtitle:
+                                            context.l10n.wantsToBeFriendsShort,
                                       ),
                                       const SizedBox(height: Gap.md),
                                       Row(
@@ -139,18 +185,20 @@ class _FriendsScreenState extends State<FriendsScreen> {
                                                   r.id,
                                                   incoming: true,
                                                 ),
-                                                'Declined',
+                                                context.l10n.declined,
                                               ),
-                                              child: const Text('Decline'),
+                                              child: Text(context.l10n.decline),
                                             ),
                                           ),
                                           Expanded(
                                             child: FilledButton(
                                               onPressed: () => _run(
                                                 () => _service.accept(r.id),
-                                                'You and ${r.from.name} are now friends',
+                                                context.l10n.nowFriends(
+                                                  r.from.name,
+                                                ),
                                               ),
-                                              child: const Text('Accept'),
+                                              child: Text(context.l10n.accept),
                                             ),
                                           ),
                                         ],
@@ -164,7 +212,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
                         // ---- Friends ----
                         SectionHeader(
-                          title: 'Your friends',
+                          title: context.l10n.yourFriends,
                           trailing: Text(
                             '${_friends.length}',
                             style: t.titleMedium?.copyWith(
@@ -178,7 +226,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                               vertical: Gap.md,
                             ),
                             child: Text(
-                              'No friends yet. Send a request above, then share recipes from any recipe\'s Share button.',
+                              context.l10n.noFriendsYet,
                               style: t.bodyMedium?.copyWith(
                                 color: c.onSurfaceVariant,
                               ),
@@ -195,23 +243,26 @@ class _FriendsScreenState extends State<FriendsScreen> {
                                       endIndent: Gap.lg,
                                     ),
                                   Padding(
-                                    padding: const EdgeInsets.fromLTRB(
-                                      Gap.md,
-                                      Gap.sm,
-                                      Gap.xs,
-                                      Gap.sm,
-                                    ),
+                                    padding:
+                                        const EdgeInsetsDirectional.fromSTEB(
+                                          Gap.md,
+                                          Gap.sm,
+                                          Gap.xs,
+                                          Gap.sm,
+                                        ),
                                     child: _PersonRow(
                                       person: _friends[i],
                                       trailing: PopupMenuButton<String>(
-                                        tooltip: 'More for ${_friends[i].name}',
+                                        tooltip: context.l10n.moreFor(
+                                          _friends[i].name,
+                                        ),
                                         onSelected: (_) =>
                                             _unfriend(_friends[i]),
                                         itemBuilder: (_) => [
                                           PopupMenuItem(
                                             value: 'remove',
                                             child: Text(
-                                              'Remove friend',
+                                              context.l10n.removeFriend,
                                               style: TextStyle(color: c.error),
                                             ),
                                           ),
@@ -226,7 +277,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
                         // ---- Sent ----
                         if (_sent.isNotEmpty) ...[
-                          const SectionHeader(title: 'Requests you sent'),
+                          SectionHeader(title: context.l10n.requestsYouSent),
                           Card(
                             child: Column(
                               children: [
@@ -247,16 +298,18 @@ class _FriendsScreenState extends State<FriendsScreen> {
                                     ),
                                     subtitle: Text(
                                       _sent[i].name != null
-                                          ? '${_sent[i].label} · waiting for an answer'
-                                          : 'Waiting for an answer',
+                                          ? context.l10n.sentWaiting(
+                                              _sent[i].label,
+                                            )
+                                          : context.l10n.waitingForAnswer,
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                     trailing: TextButton(
                                       onPressed: () => _run(
                                         () => _service.remove(_sent[i].id),
-                                        'Request cancelled',
+                                        context.l10n.requestCancelled,
                                       ),
-                                      child: const Text('Cancel'),
+                                      child: Text(context.l10n.cancel),
                                     ),
                                   ),
                                 ],
@@ -407,8 +460,8 @@ class _AddFriendCardState extends State<_AddFriendCard> {
       showMessage(
         context,
         p.status == 'received'
-            ? 'You and ${p.name} are now friends'
-            : 'Request sent to ${p.name}',
+            ? context.l10n.nowFriends(p.name)
+            : context.l10n.requestSentTo(p.name),
       );
       await _search();
       await widget.onChanged();
@@ -426,10 +479,7 @@ class _AddFriendCardState extends State<_AddFriendCard> {
       await _service.send(email);
       if (!mounted) return;
       // Same message whether or not the address has an account: that stays private.
-      showMessage(
-        context,
-        'Request sent to $email. If they use Recipe App, they\'ll see it.',
-      );
+      showMessage(context, context.l10n.requestSentToEmail(email));
       _input.clear();
       setState(() => _matches = []);
       await widget.onChanged();
@@ -452,10 +502,10 @@ class _AddFriendCardState extends State<_AddFriendCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Add a friend', style: t.titleMedium),
+            Text(context.l10n.addAFriend, style: t.titleMedium),
             const SizedBox(height: Gap.xs),
             Text(
-              'Search by name or email. Pick someone to send a request.',
+              context.l10n.addFriendHint,
               style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),
             ),
             const SizedBox(height: Gap.md),
@@ -468,7 +518,7 @@ class _AddFriendCardState extends State<_AddFriendCard> {
               onSubmitted: (_) =>
                   _isEmail && _matches.isEmpty ? _sendToEmail() : null,
               decoration: InputDecoration(
-                hintText: 'Name or email',
+                hintText: context.l10n.nameOrEmail,
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searching
                     ? const Padding(
@@ -482,7 +532,7 @@ class _AddFriendCardState extends State<_AddFriendCard> {
                     : (_text.isEmpty
                           ? null
                           : IconButton(
-                              tooltip: 'Clear',
+                              tooltip: context.l10n.clear,
                               icon: const Icon(Icons.close),
                               onPressed: () {
                                 _input.clear();
@@ -493,9 +543,12 @@ class _AddFriendCardState extends State<_AddFriendCard> {
             ),
             if (_text.isNotEmpty && _text.length < 3)
               Padding(
-                padding: const EdgeInsets.only(top: Gap.sm, left: Gap.xs),
+                padding: const EdgeInsetsDirectional.only(
+                  top: Gap.sm,
+                  start: Gap.xs,
+                ),
                 child: Text(
-                  'Type at least 3 letters',
+                  context.l10n.typeAtLeast3,
                   style: t.bodySmall?.copyWith(color: c.onSurfaceVariant),
                 ),
               ),
@@ -519,7 +572,7 @@ class _AddFriendCardState extends State<_AddFriendCard> {
                     horizontal: Gap.xs,
                   ),
                   child: Text(
-                    'No one found. Try their full email address.',
+                    context.l10n.noOneFound,
                     style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),
                   ),
                 ),
@@ -530,12 +583,10 @@ class _AddFriendCardState extends State<_AddFriendCard> {
                   ),
                   leading: Icon(Icons.mail_outline, color: c.primary),
                   title: Text(
-                    'Send a request to $_text',
+                    context.l10n.sendRequestTo(_text),
                     overflow: TextOverflow.ellipsis,
                   ),
-                  subtitle: const Text(
-                    'They\'ll see it when they use Recipe App',
-                  ),
+                  subtitle: Text(context.l10n.theyWillSeeIt),
                   trailing: _busy.contains(_text)
                       ? const SizedBox(
                           width: 20,
@@ -544,7 +595,7 @@ class _AddFriendCardState extends State<_AddFriendCard> {
                         )
                       : FilledButton.tonal(
                           onPressed: _sendToEmail,
-                          child: const Text('Send'),
+                          child: Text(context.l10n.send),
                         ),
                 ),
             ],
@@ -579,18 +630,21 @@ class _MatchRow extends StatelessWidget {
           )
         : switch (person.status) {
             'friend' => Text(
-              'Friends',
+              context.l10n.friends,
               style: t.labelLarge?.copyWith(color: c.secondary),
             ),
             'sent' => Text(
-              'Requested',
+              context.l10n.requested,
               style: t.labelLarge?.copyWith(color: c.onSurfaceVariant),
             ),
             'received' => FilledButton(
               onPressed: onAdd,
-              child: const Text('Accept'),
+              child: Text(context.l10n.accept),
             ),
-            _ => FilledButton.tonal(onPressed: onAdd, child: const Text('Add')),
+            _ => FilledButton.tonal(
+              onPressed: onAdd,
+              child: Text(context.l10n.add),
+            ),
           };
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: Gap.xs),
@@ -609,7 +663,7 @@ class _MatchRow extends StatelessWidget {
                 ),
                 Text(
                   person.status == 'received'
-                      ? 'Wants to be friends'
+                      ? context.l10n.wantsToBeFriends
                       : person.emailHint,
                   style: t.bodySmall?.copyWith(color: c.onSurfaceVariant),
                   overflow: TextOverflow.ellipsis,

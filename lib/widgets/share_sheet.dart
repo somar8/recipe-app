@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/l10n.dart';
 import 'package:go_router/go_router.dart';
 import '../models/friends.dart';
 import '../services/friend_service.dart';
@@ -77,6 +78,7 @@ class _ShareSheetState extends State<_ShareSheet> {
 
   Future<void> _done() async {
     final messenger = ScaffoldMessenger.of(context);
+    final l = context.l10n;
     final navigator = Navigator.of(context);
     if (_picked.length == _initial.length && _picked.containsAll(_initial)) {
       navigator.pop();
@@ -89,9 +91,7 @@ class _ShareSheetState extends State<_ShareSheet> {
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-            _picked.isEmpty
-                ? 'No longer shared'
-                : 'Shared with ${_picked.length} ${_picked.length == 1 ? 'friend' : 'friends'}',
+            _picked.isEmpty ? l.noLongerShared : l.sharedWithN(_picked.length),
           ),
         ),
       );
@@ -135,7 +135,7 @@ class _ShareSheetState extends State<_ShareSheet> {
                 child: Center(child: CircularProgressIndicator()),
               )
             else if (friends != null && friends.isEmpty) ...[
-              Text('You haven\'t added any friends yet.', style: t.bodyLarge),
+              Text(context.l10n.noFriendsAddedYet, style: t.bodyLarge),
               const SizedBox(height: Gap.md),
               FilledButton.icon(
                 onPressed: () {
@@ -143,7 +143,7 @@ class _ShareSheetState extends State<_ShareSheet> {
                   context.push('/account/friends');
                 },
                 icon: const Icon(Icons.person_add_alt_1_outlined),
-                label: const Text('Add friends'),
+                label: Text(context.l10n.addFriends),
               ),
             ] else if (friends != null) ...[
               ConstrainedBox(
@@ -181,7 +181,7 @@ class _ShareSheetState extends State<_ShareSheet> {
                         height: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('Done'),
+                    : Text(context.l10n.done),
               ),
             ],
           ],

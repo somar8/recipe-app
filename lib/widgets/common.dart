@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/l10n.dart';
 import '../models/recipe.dart';
 import '../models/recipe_filters.dart';
 import '../theme/app_theme.dart';
@@ -9,9 +10,9 @@ int? totalMinutes(Recipe r) => totalMinutesOf(r);
 
 /// "45 min", "1 h", "1 h 20 min".
 String formatMinutes(int minutes) {
-  if (minutes < 60) return '$minutes min';
+  if (minutes < 60) return tr.minutesValue(minutes);
   final h = minutes ~/ 60, m = minutes % 60;
-  return m == 0 ? '$h h' : '$h h $m min';
+  return m == 0 ? tr.hoursValue(h) : tr.hoursMinutesValue(h, m);
 }
 
 /// Small icon + text, used for time, servings and counts.
@@ -107,17 +108,19 @@ class RecipeCard extends StatelessWidget {
                         if (recipe.servings != null)
                           MetaLabel(
                             icon: Icons.restaurant_outlined,
-                            text: 'Serves ${recipe.servings}',
+                            text: context.l10n.servesN(recipe.servings!),
                           ),
                         if (!recipe.isMine)
                           MetaLabel(
                             icon: Icons.person_outline,
-                            text: 'From ${recipe.ownerName ?? 'a friend'}',
+                            text: context.l10n.fromName(
+                              recipe.ownerName ?? context.l10n.aFriendLower,
+                            ),
                           ),
                         if (count > 0)
                           MetaLabel(
                             icon: Icons.shopping_basket_outlined,
-                            text: '$count ingredients',
+                            text: context.l10n.ingredientCount(count),
                           ),
                       ],
                     ),
@@ -135,9 +138,9 @@ class RecipeCard extends StatelessWidget {
 
 /// Red background shown while swiping a card away to delete it.
 class SwipeDeleteBackground extends StatelessWidget {
-  const SwipeDeleteBackground({super.key, this.label = 'Delete'});
+  const SwipeDeleteBackground({super.key, this.label});
 
-  final String label;
+  final String? label;
 
   @override
   Widget build(BuildContext context) {
@@ -147,13 +150,13 @@ class SwipeDeleteBackground extends StatelessWidget {
         color: c.errorContainer,
         borderRadius: BorderRadius.circular(Corners.md),
       ),
-      alignment: Alignment.centerRight,
+      alignment: AlignmentDirectional.centerEnd,
       padding: const EdgeInsets.symmetric(horizontal: Gap.xl),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            label,
+            label ?? context.l10n.delete,
             style: TextStyle(
               color: c.onErrorContainer,
               fontWeight: FontWeight.w600,
@@ -254,7 +257,7 @@ class ErrorState extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
-              label: const Text('Try again'),
+              label: Text(context.l10n.tryAgain),
             ),
           ],
         ),
@@ -303,7 +306,7 @@ Future<bool> confirmDialog(
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),
-          child: const Text('Cancel'),
+          child: Text(context.l10n.cancel),
         ),
         FilledButton(
           onPressed: () => Navigator.pop(context, true),
@@ -451,7 +454,7 @@ class SharedByBanner extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Shared by $ownerName',
+                      context.l10n.sharedBy(ownerName),
                       style: t.titleSmall?.copyWith(
                         color: c.onSecondaryContainer,
                       ),

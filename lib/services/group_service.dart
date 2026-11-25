@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/group_recipes.dart';
 import 'data_changes.dart';
@@ -20,7 +21,7 @@ class GroupService {
           .order('title', referencedTable: 'recipes');
       return rows.map(GroupRecipes.fromDb).toList();
     } catch (e) {
-      throw Exception(friendlyError(e, fallback: 'Failed to load groups.'));
+      throw Exception(friendlyError(e, fallback: tr.failedLoadCollections));
     }
   }
 
@@ -34,9 +35,9 @@ class GroupService {
           .order('title', referencedTable: 'recipes')
           .maybeSingle();
     } catch (e) {
-      throw Exception(friendlyError(e, fallback: 'Failed to load the group.'));
+      throw Exception(friendlyError(e, fallback: tr.failedLoadCollection));
     }
-    if (row == null) throw Exception('Group not found.');
+    if (row == null) throw Exception(tr.collectionNotFound);
     return GroupRecipes.fromDb(row);
   }
 
@@ -50,7 +51,7 @@ class GroupService {
       markDataChanged();
       return GroupRecipes.fromDb(row);
     } catch (e) {
-      throw Exception(friendlyError(e, fallback: 'Failed to save group.'));
+      throw Exception(friendlyError(e, fallback: tr.failedSaveCollection));
     }
   }
 
@@ -65,7 +66,7 @@ class GroupService {
       markDataChanged();
       return GroupRecipes.fromDb(row);
     } catch (e) {
-      throw Exception(friendlyError(e, fallback: 'Failed to save group.'));
+      throw Exception(friendlyError(e, fallback: tr.failedSaveCollection));
     }
   }
 
@@ -74,7 +75,7 @@ class GroupService {
       await _db.from('recipe_groups').delete().eq('id', id);
       markDataChanged();
     } catch (e) {
-      throw Exception(friendlyError(e, fallback: 'Failed to delete group.'));
+      throw Exception(friendlyError(e, fallback: tr.failedDeleteCollection));
     }
   }
 
@@ -90,7 +91,7 @@ class GroupService {
         ], ignoreDuplicates: true);
         markDataChanged();
       } catch (e) {
-        throw Exception(friendlyError(e, fallback: 'Failed to add recipes.'));
+        throw Exception(friendlyError(e, fallback: tr.failedAddRecipes));
       }
     }
     return getById(groupId);
@@ -105,7 +106,7 @@ class GroupService {
           .eq('recipe_id', recipeId);
       markDataChanged();
     } catch (e) {
-      throw Exception(friendlyError(e, fallback: 'Failed to remove recipe.'));
+      throw Exception(friendlyError(e, fallback: tr.failedRemoveRecipe));
     }
     return getById(groupId);
   }

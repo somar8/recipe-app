@@ -19,6 +19,17 @@ void main() {
     expect(foodIconFor('Something new'), Icons.restaurant);
   });
 
+  test('understands German and Arabic titles', () {
+    expect(foodIconFor('Kartoffelsuppe'), Icons.soup_kitchen);
+    expect(foodIconFor('Milchreis'), Icons.rice_bowl);
+    expect(foodIconFor('Apfelkuchen'), Icons.cake);
+    expect(foodIconFor('Hähnchen mit Gemüse'), Icons.eco);
+    expect(foodIconFor('شوربة عدس'), Icons.soup_kitchen);
+    expect(foodIconFor('كبسة الدجاج'), Icons.rice_bowl);
+    expect(foodIconFor('الدجاج المشوي'), Icons.outdoor_grill);
+    expect(foodIconFor('سلطة فتوش'), Icons.eco);
+  });
+
   test('a name always gets the same colour', () {
     expect(colorIndexFor('Breakfast'), colorIndexFor('breakfast'));
     expect(colorIndexFor('Breakfast'), inInclusiveRange(0, 5));

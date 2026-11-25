@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/l10n.dart';
 import '../widgets/skeleton.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -91,9 +92,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
   Future<void> _share() => showShareSheet(
     context,
-    title: 'Share "${_recipe!.title}"',
-    explanation:
-        'Friends you pick can see this recipe and save their own copy. Only you can change it.',
+    title: context.l10n.shareTitle(_recipe!.title),
+    explanation: context.l10n.shareRecipeExplanation,
     load: () => ShareService().recipeSharedWith(widget.id),
     save: (ids) => ShareService().setRecipeSharedWith(widget.id, ids),
   );
@@ -111,9 +111,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           SnackBar(
             persist:
                 false, // otherwise a bar with a button never closes by itself
-            content: const Text('Saved to your recipes'),
+            content: Text(context.l10n.savedToYourRecipes),
             action: SnackBarAction(
-              label: 'Open',
+              label: context.l10n.open,
               onPressed: () => router.go('/recipes/$id'),
             ),
           ),
@@ -137,12 +137,14 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         if (mounted) {
           showMessage(
             context,
-            'It\'s also in a collection ${r.ownerName ?? 'your friend'} shared with you, so it stays there.',
+            context.l10n.alsoInSharedCollection(
+              r.ownerName ?? context.l10n.yourFriend,
+            ),
           );
         }
       } catch (_) {
         if (!mounted) return;
-        showMessage(context, 'Removed "${r.title}" from your list');
+        showMessage(context, context.l10n.removedFromYourList(r.title));
         context.canPop() ? context.pop() : context.go('/recipes');
       }
     } catch (e) {
@@ -154,16 +156,15 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     final r = _recipe!;
     final ok = await confirmDialog(
       context,
-      title: 'Delete this recipe?',
-      message:
-          '"${r.title}" will be removed from your recipes and collections. This can\'t be undone.',
-      confirmLabel: 'Delete',
+      title: context.l10n.deleteRecipeQuestion,
+      message: context.l10n.deleteRecipeMessage(r.title),
+      confirmLabel: context.l10n.delete,
     );
     if (!ok || !mounted) return;
     try {
       await _recipeService.delete(r.id!);
       if (!mounted) return;
-      showMessage(context, 'Deleted "${r.title}"');
+      showMessage(context, context.l10n.deletedTitle(r.title));
       context.pop();
     } catch (e) {
       if (mounted) showMessage(context, errorText(e));
@@ -180,7 +181,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         body: _loading
             ? const RecipePageSkeleton()
             : ErrorState(
-                message: _error ?? 'Recipe not found.',
+                message: _error ?? context.l10n.recipeNotFound,
                 onRetry: _load,
               ),
       );
@@ -211,7 +212,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               backgroundColor: c.surface,
               leading: _RoundButton(
                 icon: Icons.arrow_back,
-                tooltip: 'Back',
+                tooltip: context.l10n.back,
                 onPressed: () =>
                     context.canPop() ? context.pop() : context.go('/recipes'),
               ),
@@ -219,18 +220,18 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   ? [
                       _RoundButton(
                         icon: Icons.ios_share,
-                        tooltip: 'Share with friends',
+                        tooltip: context.l10n.shareWithFriends,
                         onPressed: _share,
                       ),
                       const SizedBox(width: Gap.xs),
                       _RoundButton(
                         icon: Icons.edit_outlined,
-                        tooltip: 'Edit',
+                        tooltip: context.l10n.edit,
                         onPressed: _edit,
                       ),
                       const SizedBox(width: Gap.xs),
                       PopupMenuButton<String>(
-                        tooltip: 'More',
+                        tooltip: context.l10n.more,
                         icon: const _RoundIcon(icon: Icons.more_horiz),
                         onSelected: (v) {
                           if (v == 'delete') _delete();
@@ -244,7 +245,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                                 color: c.error,
                               ),
                               title: Text(
-                                'Delete recipe',
+                                context.l10n.deleteRecipe,
                                 style: TextStyle(color: c.error),
                               ),
                               contentPadding: EdgeInsets.zero,
@@ -256,17 +257,17 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                     ]
                   : [
                       PopupMenuButton<String>(
-                        tooltip: 'More',
+                        tooltip: context.l10n.more,
                         icon: const _RoundIcon(icon: Icons.more_horiz),
                         onSelected: (v) {
                           if (v == 'leave') _leave();
                         },
-                        itemBuilder: (_) => const [
+                        itemBuilder: (_) => [
                           PopupMenuItem(
                             value: 'leave',
                             child: ListTile(
                               leading: Icon(Icons.remove_circle_outline),
-                              title: Text('Remove from my list'),
+                              title: Text(context.l10n.removeFromMyList),
                               contentPadding: EdgeInsets.zero,
                             ),
                           ),
@@ -311,13 +312,12 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       children: [
         if (!recipe.isMine) ...[
           SharedByBanner(
-            ownerName: recipe.ownerName ?? 'A friend',
-            message:
-                'You see their latest version. Save a copy to change it your way.',
+            ownerName: recipe.ownerName ?? context.l10n.aFriend,
+            message: context.l10n.sharedRecipeBanner,
             action: FilledButton.icon(
               onPressed: _copying ? null : _saveCopy,
               icon: const Icon(Icons.bookmark_add_outlined),
-              label: const Text('Save a copy'),
+              label: Text(context.l10n.saveACopy),
             ),
           ),
           const SizedBox(height: Gap.lg),
@@ -338,26 +338,26 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               if (recipe.prepTimeMinutes != null)
                 _StatTile(
                   icon: Icons.timer_outlined,
-                  label: 'Prep',
+                  label: context.l10n.prep,
                   value: formatMinutes(recipe.prepTimeMinutes!),
                 ),
               if (recipe.cookTimeMinutes != null)
                 _StatTile(
                   icon: Icons.local_fire_department_outlined,
-                  label: 'Cook',
+                  label: context.l10n.cook,
                   value: formatMinutes(recipe.cookTimeMinutes!),
                 ),
               if (recipe.prepTimeMinutes != null &&
                   recipe.cookTimeMinutes != null)
                 _StatTile(
                   icon: Icons.schedule,
-                  label: 'Total',
+                  label: context.l10n.total,
                   value: formatMinutes(total!),
                 ),
               if (recipe.servings != null)
                 _StatTile(
                   icon: Icons.people_outline,
-                  label: 'Serves',
+                  label: context.l10n.serves,
                   value: '${recipe.servings}',
                 ),
             ],
@@ -370,7 +370,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SectionHeader(
-          title: 'Ingredients',
+          title: context.l10n.ingredients,
           trailing: _checked.isEmpty
               ? Text(
                   '${ingredients.length}',
@@ -378,12 +378,12 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                 )
               : TextButton(
                   onPressed: () => setState(_checked.clear),
-                  child: const Text('Clear ticks'),
+                  child: Text(context.l10n.clearTicks),
                 ),
         ),
         if (ingredients.isEmpty)
           Text(
-            'No ingredients added yet.',
+            context.l10n.noIngredientsYet,
             style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),
           )
         else
@@ -412,7 +412,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SectionHeader(
-          title: 'Steps',
+          title: context.l10n.steps,
           trailing: _done.isEmpty
               ? (steps.isEmpty
                     ? null
@@ -424,12 +424,12 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                       ))
               : TextButton(
                   onPressed: () => setState(_done.clear),
-                  child: const Text('Start over'),
+                  child: Text(context.l10n.startOver),
                 ),
         ),
         if (steps.isEmpty)
           Text(
-            'No steps added yet.',
+            context.l10n.noStepsYet,
             style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),
           )
         else
@@ -580,10 +580,7 @@ class _IngredientRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = Theme.of(context).colorScheme;
     final t = Theme.of(context).textTheme;
-    final amount = [
-      ingredient.quantity,
-      ingredient.unit,
-    ].where((s) => s != null && s.isNotEmpty).join(' ');
+    final amount = ingredient.amountText;
     final faded = checked ? c.onSurfaceVariant.withValues(alpha: 0.7) : null;
     // Read out as one checkbox: "Flour, 200 g, checked".
     return MergeSemantics(
@@ -666,12 +663,11 @@ class _StepRow extends StatelessWidget {
     return MergeSemantics(
       child: Semantics(
         checked: done,
-        label:
-            'Step $number${done
-                ? ', done'
-                : current
-                ? ', up next'
-                : ''}: $text',
+        label: done
+            ? context.l10n.stepDone(number, text)
+            : current
+            ? context.l10n.stepUpNext(number, text)
+            : context.l10n.stepPlain(number, text),
         excludeSemantics: true,
         child: InkWell(
           onTap: onTap,

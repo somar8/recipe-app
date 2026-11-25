@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/l10n.dart';
 import '../services/data_changes.dart';
 import '../widgets/skeleton.dart';
 import 'package:go_router/go_router.dart';
@@ -99,9 +100,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
   Future<void> _share() => showShareSheet(
     context,
-    title: 'Share "${_group!.name}"',
-    explanation:
-        'Friends you pick can see this collection and every recipe in it, including ones you add later. Only you can change it.',
+    title: context.l10n.shareTitle(_group!.name),
+    explanation: context.l10n.shareCollectionExplanation,
     load: () => ShareService().collectionSharedWith(widget.id),
     save: (ids) => ShareService().setCollectionSharedWith(widget.id, ids),
   );
@@ -112,7 +112,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     try {
       await ShareService().leaveCollection(g.id!);
       if (!mounted) return;
-      showMessage(context, 'Removed "${g.name}" from your list');
+      showMessage(context, context.l10n.removedFromYourList(g.name));
       context.canPop() ? context.pop() : context.go('/groups');
     } catch (e) {
       if (mounted) showMessage(context, errorText(e));
@@ -123,15 +123,15 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     final g = _group!;
     final ok = await confirmDialog(
       context,
-      title: 'Delete this collection?',
-      message: '"${g.name}" will be deleted. The recipes in it are kept.',
-      confirmLabel: 'Delete',
+      title: context.l10n.deleteCollectionQuestion,
+      message: context.l10n.deleteCollectionMessage(g.name),
+      confirmLabel: context.l10n.delete,
     );
     if (!ok || !mounted) return;
     try {
       await _groupService.delete(g.id!);
       if (!mounted) return;
-      showMessage(context, 'Deleted "${g.name}"');
+      showMessage(context, context.l10n.deletedTitle(g.name));
       context.pop();
     } catch (e) {
       if (mounted) showMessage(context, errorText(e));
@@ -149,9 +149,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           SnackBar(
             persist:
                 false, // otherwise a bar with a button never closes by itself
-            content: Text('Removed "${r.title}" from this collection'),
+            content: Text(context.l10n.removedFromCollection(r.title)),
             action: SnackBarAction(
-              label: 'Undo',
+              label: context.l10n.undo,
               onPressed: () => _add([r.id!]),
             ),
           ),
@@ -167,10 +167,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       final updated = await _groupService.addRecipes(widget.id, ids);
       if (!mounted) return;
       setState(() => _group = updated);
-      showMessage(
-        context,
-        ids.length == 1 ? 'Added 1 recipe' : 'Added ${ids.length} recipes',
-      );
+      showMessage(context, context.l10n.addedRecipes(ids.length));
     } catch (e) {
       if (mounted) showMessage(context, errorText(e));
     }
@@ -182,8 +179,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       showMessage(
         context,
         _allRecipes.isEmpty
-            ? 'Add some recipes first.'
-            : 'All your recipes are already in this collection.',
+            ? context.l10n.addSomeRecipesFirst
+            : context.l10n.allRecipesAlreadyIn,
       );
       return;
     }
@@ -216,16 +213,16 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
             : !group.isMine
             ? [
                 PopupMenuButton<String>(
-                  tooltip: 'More',
+                  tooltip: context.l10n.more,
                   onSelected: (v) {
                     if (v == 'leave') _leave();
                   },
-                  itemBuilder: (_) => const [
+                  itemBuilder: (_) => [
                     PopupMenuItem(
                       value: 'leave',
                       child: ListTile(
                         leading: Icon(Icons.remove_circle_outline),
-                        title: Text('Remove from my list'),
+                        title: Text(context.l10n.removeFromMyList),
                         contentPadding: EdgeInsets.zero,
                       ),
                     ),
@@ -235,16 +232,16 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
             : [
                 IconButton(
                   icon: const Icon(Icons.ios_share),
-                  tooltip: 'Share with friends',
+                  tooltip: context.l10n.shareWithFriends,
                   onPressed: _share,
                 ),
                 IconButton(
                   icon: const Icon(Icons.edit_outlined),
-                  tooltip: 'Edit',
+                  tooltip: context.l10n.edit,
                   onPressed: _edit,
                 ),
                 PopupMenuButton<String>(
-                  tooltip: 'More',
+                  tooltip: context.l10n.more,
                   onSelected: (v) {
                     if (v == 'delete') _delete();
                   },
@@ -254,7 +251,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                       child: ListTile(
                         leading: Icon(Icons.delete_outline, color: c.error),
                         title: Text(
-                          'Delete collection',
+                          context.l10n.deleteCollection,
                           style: TextStyle(color: c.error),
                         ),
                         contentPadding: EdgeInsets.zero,
@@ -270,7 +267,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           : FloatingActionButton.extended(
               onPressed: _openAddSheet,
               icon: const Icon(Icons.playlist_add),
-              label: const Text('Add recipes'),
+              label: Text(context.l10n.addRecipes),
             ),
       body: PageWidth(
         maxWidth: 1100,
@@ -278,7 +275,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
             ? (_loading
                   ? const ListPageSkeleton(cards: 3, showSearch: false)
                   : ErrorState(
-                      message: _error ?? 'Collection not found.',
+                      message: _error ?? context.l10n.collectionNotFound,
                       onRetry: _load,
                     ))
             : RefreshIndicator(
@@ -302,9 +299,10 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                               children: [
                                 if (!group.isMine) ...[
                                   SharedByBanner(
-                                    ownerName: group.ownerName ?? 'A friend',
+                                    ownerName:
+                                        group.ownerName ?? context.l10n.aFriend,
                                     message:
-                                        'Recipes they add later show up here too. Open one to save a copy.',
+                                        context.l10n.sharedCollectionBanner,
                                   ),
                                   const SizedBox(height: Gap.lg),
                                 ],
@@ -333,7 +331,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                                           ],
                                           const SizedBox(height: Gap.xs),
                                           Text(
-                                            '${recipes.length} ${recipes.length == 1 ? 'recipe' : 'recipes'}',
+                                            context.l10n.recipeCount(
+                                              recipes.length,
+                                            ),
                                             style: t.labelLarge?.copyWith(
                                               color: c.primary,
                                             ),
@@ -352,11 +352,16 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                             hasScrollBody: false,
                             child: EmptyState(
                               icon: Icons.playlist_add,
-                              title: 'Nothing here yet',
+                              title: context.l10n.nothingHereYet,
                               message: group.isMine
-                                  ? 'Pick recipes to add to this collection.'
-                                  : 'Recipes ${group.ownerName ?? 'your friend'} adds will show up here.',
-                              actionLabel: group.isMine ? 'Add recipes' : null,
+                                  ? context.l10n.pickRecipesToAdd
+                                  : context.l10n.friendAddsShowUp(
+                                      group.ownerName ??
+                                          context.l10n.yourFriend,
+                                    ),
+                              actionLabel: group.isMine
+                                  ? context.l10n.addRecipes
+                                  : null,
                               onAction: group.isMine ? _openAddSheet : null,
                             ),
                           )
@@ -382,7 +387,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                                           icon: const Icon(
                                             Icons.remove_circle_outline,
                                           ),
-                                          tooltip: 'Remove from collection',
+                                          tooltip:
+                                              context.l10n.removeFromCollection,
                                           color: c.onSurfaceVariant,
                                           onPressed: () => _remove(r),
                                         ),
@@ -434,12 +440,12 @@ class _AddRecipesSheetState extends State<_AddRecipesSheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Add recipes', style: t.titleLarge),
+                Text(context.l10n.addRecipes, style: t.titleLarge),
                 const SizedBox(height: Gap.md),
                 TextField(
                   onChanged: (v) => setState(() => _query = v),
-                  decoration: const InputDecoration(
-                    hintText: 'Search recipes',
+                  decoration: InputDecoration(
+                    hintText: context.l10n.searchRecipes,
                     prefixIcon: Icon(Icons.search),
                   ),
                 ),
@@ -487,8 +493,8 @@ class _AddRecipesSheetState extends State<_AddRecipesSheet> {
                       : () => Navigator.pop(context, _picked.toList()),
                   child: Text(
                     _picked.isEmpty
-                        ? 'Select recipes'
-                        : 'Add ${_picked.length} ${_picked.length == 1 ? 'recipe' : 'recipes'}',
+                        ? context.l10n.selectRecipes
+                        : context.l10n.addNRecipes(_picked.length),
                   ),
                 ),
               ),

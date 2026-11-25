@@ -10,6 +10,7 @@ Recipe _r({int? prep, int? cook, String? owner}) => Recipe(
 );
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized(); // filter names follow the app's language
   setUp(() => Recipe.currentUserId = () => 'me');
 
   test('time filters use prep plus cook', () {

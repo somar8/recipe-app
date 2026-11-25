@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../l10n/l10n.dart';
+import '../widgets/language_picker.dart';
 import '../theme/app_theme.dart';
 import '../widgets/food_art.dart';
 import 'package:go_router/go_router.dart';
@@ -55,6 +57,11 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // Choose a language before signing in.
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        actions: const [LanguageButton(), SizedBox(width: 8)],
+      ),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -68,13 +75,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   const Center(child: AppLogo()),
                   const SizedBox(height: Gap.lg),
                   Text(
-                    'Recipe App',
+                    context.l10n.appName,
                     style: Theme.of(context).textTheme.headlineMedium,
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Sign in to your account',
+                    context.l10n.signInToAccount,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -86,7 +93,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     keyboardType: TextInputType.emailAddress,
                     autofillHints: const [AutofillHints.email],
                     textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(labelText: 'Email'),
+                    decoration: InputDecoration(labelText: context.l10n.email),
                   ),
                   const SizedBox(height: 16),
                   TextField(
@@ -95,7 +102,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     autofillHints: const [AutofillHints.password],
                     textInputAction: TextInputAction.done,
                     onSubmitted: (_) => _submit(),
-                    decoration: const InputDecoration(labelText: 'Password'),
+                    decoration: InputDecoration(
+                      labelText: context.l10n.password,
+                    ),
                   ),
                   if (_error != null) ...[
                     const SizedBox(height: 12),
@@ -115,12 +124,12 @@ class _LoginScreenState extends State<LoginScreen> {
                             height: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('Sign in'),
+                        : Text(context.l10n.signIn),
                   ),
                   const SizedBox(height: 12),
                   TextButton(
                     onPressed: () => context.go('/register'),
-                    child: const Text("New here? Create an account"),
+                    child: Text(context.l10n.newHereCreateAccount),
                   ),
                 ],
               ),

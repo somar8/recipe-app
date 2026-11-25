@@ -5,7 +5,7 @@
 -- Every user sees and changes only their own recipes and groups. The rules below
 -- (Row Level Security) are enforced by the database itself, whatever the app does.
 -- Sign-up and passwords are handled by Supabase Auth; the display name lives in the
--- user's metadata ("username").
+-- user's metadata ("first_name", "last_name").
 
 -- ---------- Tables ----------
 
@@ -88,6 +88,18 @@ create table if not exists public.recipe_profiles (
   created_at   timestamptz not null default now()
 );
 
+-- The name friends see: "First Last" from the account settings, else the older single
+-- "username", else the part of the email before the @. At most 60 characters.
+create or replace function public.display_name_of(meta jsonb, email text)
+returns text language sql immutable set search_path = ''
+as $$
+  select left(coalesce(
+    nullif(btrim(concat_ws(' ', nullif(btrim(meta ->> 'first_name'), ''), nullif(btrim(meta ->> 'last_name'), ''))), ''),
+    nullif(btrim(meta ->> 'username'), ''),
+    split_part(coalesce(email, ''), '@', 1)
+  ), 60)
+$$;
+
 create or replace function public.sync_recipe_profile()
 returns trigger
 language plpgsql
@@ -98,7 +110,7 @@ begin
   insert into public.recipe_profiles (id, display_name, email)
   values (
     new.id,
-    left(coalesce(nullif(btrim(new.raw_user_meta_data ->> 'username'), ''), split_part(coalesce(new.email, ''), '@', 1)), 60),
+    public.display_name_of(new.raw_user_meta_data, new.email),
     lower(coalesce(new.email, ''))
   )
   on conflict (id) do update
@@ -116,7 +128,7 @@ create trigger sync_recipe_profile
 -- Accounts made before this existed get their profile now.
 insert into public.recipe_profiles (id, display_name, email)
 select u.id,
-       left(coalesce(nullif(btrim(u.raw_user_meta_data ->> 'username'), ''), split_part(coalesce(u.email, ''), '@', 1)), 60),
+       public.display_name_of(u.raw_user_meta_data, u.email),
        lower(coalesce(u.email, ''))
 from auth.users u
 on conflict (id) do nothing;

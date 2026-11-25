@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'data_changes.dart';
 import 'errors.dart';
@@ -18,9 +19,7 @@ class ShareService {
           .eq(table.$2, id);
       return {for (final r in rows) r['friend_id'] as String};
     } catch (e) {
-      throw Exception(
-        friendlyError(e, fallback: 'Failed to load who this is shared with.'),
-      );
+      throw Exception(friendlyError(e, fallback: tr.failedLoadShares));
     }
   }
 
@@ -51,9 +50,8 @@ class ShareService {
       throw Exception(
         friendlyError(
           e,
-          fallback: 'Could not update sharing. Please try again.',
-          forbidden:
-              'You can only share your own recipes and collections, and only with friends.',
+          fallback: tr.couldNotUpdateSharing,
+          forbidden: tr.shareOnlyOwn,
         ),
       );
     }
@@ -65,9 +63,7 @@ class ShareService {
       await _db.from(table.$1).delete().eq(table.$2, id).eq('friend_id', _me);
       markDataChanged();
     } catch (e) {
-      throw Exception(
-        friendlyError(e, fallback: 'Could not remove it. Please try again.'),
-      );
+      throw Exception(friendlyError(e, fallback: tr.couldNotRemoveIt));
     }
   }
 

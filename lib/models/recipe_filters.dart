@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'recipe.dart';
 
 /// Total time (prep + cook), or null when neither is set.
@@ -8,13 +9,17 @@ int? totalMinutesOf(Recipe r) {
 
 /// "How long may it take?" filter on the recipe list.
 enum TimeFilter {
-  any('Any time'),
-  under30('Under 30 min'),
-  under60('Under 1 hour'),
-  hourPlus('1 hour or more');
+  any,
+  under30,
+  under60,
+  hourPlus;
 
-  const TimeFilter(this.label);
-  final String label;
+  String get label => switch (this) {
+    any => tr.anyTime,
+    under30 => tr.under30Min,
+    under60 => tr.under1Hour,
+    hourPlus => tr.oneHourOrMore,
+  };
 
   /// Recipes without a time only show under [any]: we can't promise they're quick.
   bool matches(Recipe r) {
@@ -32,12 +37,15 @@ enum TimeFilter {
 
 /// "Whose recipes?" filter on the recipe list.
 enum OwnerFilter {
-  all('All'),
-  mine('Mine'),
-  shared('Shared with me');
+  all,
+  mine,
+  shared;
 
-  const OwnerFilter(this.label);
-  final String label;
+  String get label => switch (this) {
+    all => tr.all,
+    mine => tr.mine,
+    shared => tr.sharedWithMe,
+  };
 
   bool matches(Recipe r) => switch (this) {
     all => true,

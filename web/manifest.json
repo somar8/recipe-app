@@ -4,7 +4,7 @@
     "start_url": "/",
     "display": "standalone",
     "background_color": "#FFFBF5",
-    "theme_color": "#993C1D",
+    "theme_color": "#FFFBF5",
     "description": "Your recipes and collections, on any device.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,

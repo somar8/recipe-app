@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/l10n.dart';
 import 'package:go_router/go_router.dart';
 import '../models/group_recipes.dart';
 import '../services/group_service.dart';
@@ -118,9 +119,9 @@ class _GroupFormScreenState extends State<GroupFormScreen> {
   Future<void> _confirmLeave() async {
     final leave = await confirmDialog(
       context,
-      title: 'Discard changes?',
-      message: 'What you typed won\'t be saved.',
-      confirmLabel: 'Discard',
+      title: context.l10n.discardChangesQuestion,
+      message: context.l10n.discardMessage,
+      confirmLabel: context.l10n.discard,
     );
     if (leave && mounted) {
       _savedSnapshot = _snapshot();
@@ -140,16 +141,18 @@ class _GroupFormScreenState extends State<GroupFormScreen> {
         appBar: AppBar(
           leading: IconButton(
             icon: const Icon(Icons.close),
-            tooltip: 'Close',
+            tooltip: context.l10n.close,
             onPressed: () => context.canPop()
                 ? Navigator.maybePop(context)
                 : _confirmOrClose(),
           ),
-          title: Text(_isEdit ? 'Edit collection' : 'New collection'),
+          title: Text(
+            _isEdit ? context.l10n.editCollection : context.l10n.newCollection,
+          ),
         ),
         body: _loadFailed
             ? ErrorState(
-                message: _error ?? 'Could not load this.',
+                message: _error ?? context.l10n.couldNotLoad,
                 onRetry: () {
                   setState(() => _loadFailed = false);
                   _load();
@@ -195,11 +198,11 @@ class _GroupFormScreenState extends State<GroupFormScreen> {
                             textCapitalization: TextCapitalization.sentences,
                             textInputAction: TextInputAction.next,
                             validator: (v) => (v == null || v.trim().isEmpty)
-                                ? 'Give your collection a name'
+                                ? context.l10n.giveCollectionName
                                 : null,
-                            decoration: const InputDecoration(
-                              labelText: 'Name',
-                              hintText: 'Weeknight dinners',
+                            decoration: InputDecoration(
+                              labelText: context.l10n.name,
+                              hintText: context.l10n.collectionNameExample,
                             ),
                           ),
                           const SizedBox(height: Gap.md),
@@ -208,9 +211,10 @@ class _GroupFormScreenState extends State<GroupFormScreen> {
                             minLines: 2,
                             maxLines: 4,
                             textCapitalization: TextCapitalization.sentences,
-                            decoration: const InputDecoration(
-                              labelText: 'Description',
-                              hintText: 'Quick meals for busy evenings',
+                            decoration: InputDecoration(
+                              labelText: context.l10n.description,
+                              hintText:
+                                  context.l10n.collectionDescriptionExample,
                               alignLabelWithHint: true,
                             ),
                           ),
@@ -245,7 +249,9 @@ class _GroupFormScreenState extends State<GroupFormScreen> {
                                 ),
                               )
                             : Text(
-                                _isEdit ? 'Save changes' : 'Create collection',
+                                _isEdit
+                                    ? context.l10n.saveChanges
+                                    : context.l10n.createCollection,
                               ),
                       ),
                     ),

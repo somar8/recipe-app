@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import '../l10n/l10n.dart';
 import 'package:go_router/go_router.dart';
 import '../services/auth_service.dart';
 import '../services/friend_service.dart';
 import '../services/theme_settings.dart';
+import '../services/locale_settings.dart';
+import '../widgets/language_picker.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_shell.dart';
 
@@ -15,36 +18,24 @@ class AccountScreen extends StatefulWidget {
 
 class _AccountScreenState extends State<AccountScreen> {
   Future<void> _editName() async {
-    final name = await showDialog<String>(
-      context: context,
-      builder: (_) => _NameDialog(initial: AuthService().username ?? ''),
-    );
-    if (name == null || name.trim().isEmpty || !mounted) return;
-    try {
-      await AuthService().updateName(name.trim());
-      if (mounted) setState(() {});
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
-      );
-    }
+    await context.push('/account/details');
+    if (mounted) setState(() {}); // show the new name
   }
 
   Future<void> _signOut() async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Sign out?'),
-        content: const Text('Your recipes stay saved in your account.'),
+        title: Text(context.l10n.signOutQuestion),
+        content: Text(context.l10n.signOutMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Sign out'),
+            child: Text(context.l10n.signOut),
           ),
         ],
       ),
@@ -63,7 +54,7 @@ class _AccountScreenState extends State<AccountScreen> {
     final initial = name.isNotEmpty ? name.characters.first.toUpperCase() : '?';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Account')),
+      appBar: AppBar(title: Text(context.l10n.account)),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.sm, Gap.lg, Gap.xxl),
         child: PageWidth(
@@ -110,7 +101,7 @@ class _AccountScreenState extends State<AccountScreen> {
                       ),
                       IconButton(
                         icon: const Icon(Icons.edit_outlined),
-                        tooltip: 'Change your name',
+                        tooltip: context.l10n.editYourDetails,
                         onPressed: _editName,
                       ),
                     ],
@@ -121,8 +112,8 @@ class _AccountScreenState extends State<AccountScreen> {
               Card(
                 child: ListTile(
                   leading: Icon(Icons.group_outlined, color: c.primary),
-                  title: const Text('Friends'),
-                  subtitle: const Text('Add friends and answer requests'),
+                  title: Text(context.l10n.friends),
+                  subtitle: Text(context.l10n.friendsSubtitle),
                   trailing: ValueListenableBuilder<int>(
                     valueListenable: FriendService().waitingCount,
                     builder: (_, count, _) => Row(
@@ -137,31 +128,31 @@ class _AccountScreenState extends State<AccountScreen> {
                   onTap: () => context.push('/account/friends'),
                 ),
               ),
-              const SizedBox(height: Gap.xl),
+              SizedBox(height: Gap.xl),
               Text(
-                'Appearance',
+                context.l10n.appearance,
                 style: t.titleSmall?.copyWith(color: c.onSurfaceVariant),
               ),
-              const SizedBox(height: Gap.sm),
+              SizedBox(height: Gap.sm),
               ListenableBuilder(
                 listenable: ThemeSettings(),
                 builder: (context, _) => SegmentedButton<ThemeMode>(
                   showSelectedIcon: false,
-                  segments: const [
+                  segments: [
                     ButtonSegment(
                       value: ThemeMode.system,
                       icon: Icon(Icons.brightness_auto_outlined),
-                      label: Text('Auto'),
+                      label: Text(context.l10n.themeAuto),
                     ),
                     ButtonSegment(
                       value: ThemeMode.light,
                       icon: Icon(Icons.light_mode_outlined),
-                      label: Text('Light'),
+                      label: Text(context.l10n.themeLight),
                     ),
                     ButtonSegment(
                       value: ThemeMode.dark,
                       icon: Icon(Icons.dark_mode_outlined),
-                      label: Text('Dark'),
+                      label: Text(context.l10n.themeDark),
                     ),
                   ],
                   selected: {ThemeSettings().mode},
@@ -170,65 +161,49 @@ class _AccountScreenState extends State<AccountScreen> {
               ),
               const SizedBox(height: Gap.xs),
               Text(
-                'Auto follows your device\'s setting.',
+                context.l10n.themeAutoHint,
                 style: t.bodySmall?.copyWith(color: c.onSurfaceVariant),
+              ),
+              const SizedBox(height: Gap.xl),
+              Text(
+                context.l10n.language,
+                style: t.titleSmall?.copyWith(color: c.onSurfaceVariant),
+              ),
+              const SizedBox(height: Gap.sm),
+              Card(
+                child: ListenableBuilder(
+                  listenable: LocaleSettings(),
+                  builder: (context, _) {
+                    final chosen = LocaleSettings().chosen;
+                    final device = LocaleSettings
+                        .nativeNames[LocaleSettings.deviceLocale.languageCode]!;
+                    return ListTile(
+                      leading: Icon(Icons.language, color: c.primary),
+                      title: Text(
+                        chosen == null
+                            ? context.l10n.languageAutomatic
+                            : LocaleSettings.nativeNames[chosen.languageCode]!,
+                      ),
+                      subtitle: chosen == null
+                          ? Text(context.l10n.languageAutomaticHint(device))
+                          : null,
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => showLanguagePicker(context),
+                    );
+                  },
+                ),
               ),
               const SizedBox(height: Gap.xxl),
               OutlinedButton.icon(
                 onPressed: _signOut,
                 icon: const Icon(Icons.logout),
-                label: const Text('Sign out'),
+                label: Text(context.l10n.signOut),
                 style: OutlinedButton.styleFrom(foregroundColor: c.error),
               ),
             ],
           ),
         ),
       ),
-    );
-  }
-}
-
-/// Asks for a new display name. Owns its text field, so the field is only cleaned up
-/// after the closing animation has finished.
-class _NameDialog extends StatefulWidget {
-  const _NameDialog({required this.initial});
-  final String initial;
-
-  @override
-  State<_NameDialog> createState() => _NameDialogState();
-}
-
-class _NameDialogState extends State<_NameDialog> {
-  late final _controller = TextEditingController(text: widget.initial);
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Your name'),
-      content: TextField(
-        controller: _controller,
-        autofocus: true,
-        maxLength: 60,
-        textCapitalization: TextCapitalization.words,
-        decoration: const InputDecoration(labelText: 'Name'),
-        onSubmitted: (v) => Navigator.pop(context, v),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(context, _controller.text),
-          child: const Text('Save'),
-        ),
-      ],
     );
   }
 }

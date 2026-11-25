@@ -21,7 +21,7 @@ abstract final class Corners {
   static const double pill = 999;
 }
 
-/// Warm "kitchen" palette: terracotta primary, olive secondary, amber tertiary, cream surfaces.
+/// Warm "kitchen" palette: terracotta primary, caramel secondary, amber tertiary, cream surfaces.
 abstract final class AppColors {
   static const light = ColorScheme(
     brightness: Brightness.light,
@@ -29,10 +29,10 @@ abstract final class AppColors {
     onPrimary: Color(0xFFFFFBF5),
     primaryContainer: Color(0xFFFAECE7),
     onPrimaryContainer: Color(0xFF4A1B0C),
-    secondary: Color(0xFF3B6D11),
+    secondary: Color(0xFF7A5230),
     onSecondary: Color(0xFFFFFFFF),
-    secondaryContainer: Color(0xFFEAF3DE),
-    onSecondaryContainer: Color(0xFF173404),
+    secondaryContainer: Color(0xFFF3E6D8),
+    onSecondaryContainer: Color(0xFF3D2814),
     tertiary: Color(0xFF854F0B),
     onTertiary: Color(0xFFFFFFFF),
     tertiaryContainer: Color(0xFFFAEEDA),
@@ -65,10 +65,10 @@ abstract final class AppColors {
     onPrimary: Color(0xFF4A1B0C),
     primaryContainer: Color(0xFF712B13),
     onPrimaryContainer: Color(0xFFFAECE7),
-    secondary: Color(0xFF97C459),
-    onSecondary: Color(0xFF173404),
-    secondaryContainer: Color(0xFF27500A),
-    onSecondaryContainer: Color(0xFFEAF3DE),
+    secondary: Color(0xFFE0B58C),
+    onSecondary: Color(0xFF3D2814),
+    secondaryContainer: Color(0xFF5C3D22),
+    onSecondaryContainer: Color(0xFFF3E6D8),
     tertiary: Color(0xFFEF9F27),
     onTertiary: Color(0xFF412402),
     tertiaryContainer: Color(0xFF633806),
@@ -128,15 +128,23 @@ abstract final class TileColors {
 }
 
 abstract final class AppTheme {
-  static ThemeData light() => _build(AppColors.light);
-  static ThemeData dark() => _build(AppColors.dark);
+  static ThemeData light([Locale locale = const Locale('en')]) =>
+      _build(AppColors.light, locale);
+  static ThemeData dark([Locale locale = const Locale('en')]) =>
+      _build(AppColors.dark, locale);
 
-  static ThemeData _build(ColorScheme c) {
+  static ThemeData _build(ColorScheme c, Locale locale) {
     final base = ThemeData(colorScheme: c, useMaterial3: true);
-    final body = GoogleFonts.interTextTheme(base.textTheme);
+    // Arabic gets IBM Plex Sans Arabic throughout: Inter and Fraunces have no Arabic letters.
+    final arabic = locale.languageCode == 'ar';
+    final body = arabic
+        ? GoogleFonts.ibmPlexSansArabicTextTheme(base.textTheme)
+        : GoogleFonts.interTextTheme(base.textTheme);
     // Headings in a warm serif; everything else in Inter.
     TextStyle? serif(TextStyle? s, {FontWeight weight = FontWeight.w600}) =>
-        GoogleFonts.fraunces(textStyle: s, fontWeight: weight);
+        arabic
+        ? GoogleFonts.ibmPlexSansArabic(textStyle: s, fontWeight: weight)
+        : GoogleFonts.fraunces(textStyle: s, fontWeight: weight);
     final text = body
         .copyWith(
           displayLarge: serif(body.displayLarge),
@@ -380,10 +388,25 @@ Future<void> useBundledFonts() async {
     for (final (family, file) in [
       ('Inter', 'Inter-OFL.txt'),
       ('Fraunces', 'Fraunces-OFL.txt'),
+      ('IBM Plex Sans Arabic', 'IBMPlexSansArabic-OFL.txt'),
     ]) {
       yield LicenseEntryWithLineBreaks([
         family,
       ], await rootBundle.loadString('assets/fonts/$file'));
     }
   });
+}
+
+/// Loads the fonts a language needs before it is shown, so Arabic text never appears
+/// in a fallback font first. Only Arabic needs extra files; they load on first use.
+Future<void> loadFontsFor(Locale locale) async {
+  if (locale.languageCode != 'ar') return;
+  try {
+    GoogleFonts.ibmPlexSansArabic();
+    GoogleFonts.ibmPlexSansArabic(fontWeight: FontWeight.w500);
+    GoogleFonts.ibmPlexSansArabic(fontWeight: FontWeight.w600);
+    await GoogleFonts.pendingFonts();
+  } catch (_) {
+    // A missing font file is not worth stopping the app for; the system font is used.
+  }
 }

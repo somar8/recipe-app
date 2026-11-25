@@ -1,0 +1,582 @@
+{
+  "@@locale": "en",
+  "appName": "Recipe App",
+  "@appName": {
+    "description": "The app's name"
+  },
+  "language": "Language",
+  "languageAutomatic": "Automatic",
+  "languageAutomaticHint": "Follows your phone ({language})",
+  "@languageAutomaticHint": {
+    "placeholders": {
+      "language": {
+        "type": "String"
+      }
+    }
+  },
+  "chooseLanguage": "Choose a language",
+  "signOutQuestion": "Sign out?",
+  "signOutMessage": "Your recipes stay saved in your account.",
+  "cancel": "Cancel",
+  "signOut": "Sign out",
+  "account": "Account",
+  "editYourDetails": "Edit your details",
+  "friends": "Friends",
+  "friendsSubtitle": "Add friends and answer requests",
+  "appearance": "Appearance",
+  "themeAuto": "Auto",
+  "themeLight": "Light",
+  "themeDark": "Dark",
+  "themeAutoHint": "Auto follows your device's setting.",
+  "removeFriendQuestion": "Remove {name}?",
+  "@removeFriendQuestion": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "removeFriendMessage": "You'll stop seeing each other's shared recipes and collections. You can send a new request later.",
+  "remove": "Remove",
+  "removedName": "Removed {name}",
+  "@removedName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "someListsFailed": "Some lists didn't load. {details}",
+  "@someListsFailed": {
+    "placeholders": {
+      "details": {
+        "type": "String"
+      }
+    }
+  },
+  "tryAgain": "Try again",
+  "waitingForYou": "Waiting for you",
+  "wantsToBeFriendsShort": "wants to be friends",
+  "declined": "Declined",
+  "decline": "Decline",
+  "nowFriends": "You and {name} are now friends",
+  "@nowFriends": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "accept": "Accept",
+  "yourFriends": "Your friends",
+  "noFriendsYet": "No friends yet. Send a request above, then share recipes from any recipe's Share button.",
+  "moreFor": "More for {name}",
+  "@moreFor": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "removeFriend": "Remove friend",
+  "requestsYouSent": "Requests you sent",
+  "sentWaiting": "{label} · waiting for an answer",
+  "@sentWaiting": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "waitingForAnswer": "Waiting for an answer",
+  "requestCancelled": "Request cancelled",
+  "requestSentTo": "Request sent to {name}",
+  "@requestSentTo": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "requestSentToEmail": "Request sent to {email}. If they use Recipe App, they'll see it.",
+  "@requestSentToEmail": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "addAFriend": "Add a friend",
+  "addFriendHint": "Search by name or email. Pick someone to send a request.",
+  "nameOrEmail": "Name or email",
+  "clear": "Clear",
+  "typeAtLeast3": "Type at least 3 letters",
+  "noOneFound": "No one found. Try their full email address.",
+  "sendRequestTo": "Send a request to {email}",
+  "@sendRequestTo": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "theyWillSeeIt": "They'll see it when they use Recipe App",
+  "send": "Send",
+  "requested": "Requested",
+  "add": "Add",
+  "wantsToBeFriends": "Wants to be friends",
+  "yourFriend": "your friend",
+  "stepDone": "Step {number}, done: {text}",
+  "@stepDone": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      },
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "stepUpNext": "Step {number}, up next: {text}",
+  "@stepUpNext": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      },
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "shareTitle": "Share \"{title}\"",
+  "@shareTitle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "shareRecipeExplanation": "Friends you pick can see this recipe and save their own copy. Only you can change it.",
+  "savedToYourRecipes": "Saved to your recipes",
+  "open": "Open",
+  "alsoInSharedCollection": "It's also in a collection {name} shared with you, so it stays there.",
+  "@alsoInSharedCollection": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "removedFromYourList": "Removed \"{title}\" from your list",
+  "@removedFromYourList": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteRecipeQuestion": "Delete this recipe?",
+  "deleteRecipeMessage": "\"{title}\" will be removed from your recipes and collections. This can't be undone.",
+  "@deleteRecipeMessage": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "delete": "Delete",
+  "deletedTitle": "Deleted \"{title}\"",
+  "@deletedTitle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "recipeNotFound": "Recipe not found.",
+  "back": "Back",
+  "shareWithFriends": "Share with friends",
+  "edit": "Edit",
+  "more": "More",
+  "deleteRecipe": "Delete recipe",
+  "removeFromMyList": "Remove from my list",
+  "aFriend": "A friend",
+  "sharedRecipeBanner": "You see their latest version. Save a copy to change it your way.",
+  "saveACopy": "Save a copy",
+  "prep": "Prep",
+  "cook": "Cook",
+  "total": "Total",
+  "serves": "Serves",
+  "ingredients": "Ingredients",
+  "clearTicks": "Clear ticks",
+  "noIngredientsYet": "No ingredients added yet.",
+  "steps": "Steps",
+  "startOver": "Start over",
+  "noStepsYet": "No steps added yet.",
+  "stepPlain": "Step {number}: {text}",
+  "@stepPlain": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      },
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "addedIngredients": "{count, plural, =1{Added 1 ingredient} other{Added {count} ingredients}}",
+  "@addedIngredients": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "discardChangesQuestion": "Discard changes?",
+  "discardRecipeMessage": "What you typed in this recipe won't be saved.",
+  "discard": "Discard",
+  "aboveZero": "Above 0",
+  "close": "Close",
+  "editRecipe": "Edit recipe",
+  "newRecipe": "New recipe",
+  "couldNotLoad": "Could not load this.",
+  "saveChanges": "Save changes",
+  "saveRecipe": "Save recipe",
+  "giveRecipeName": "Give your recipe a name",
+  "recipeName": "Recipe name",
+  "recipeNameExample": "Fluffy pancakes",
+  "shortDescription": "Short description",
+  "shortDescriptionExample": "Sunday breakfast classic",
+  "timeAndServings": "Time and servings",
+  "minutesShort": "min",
+  "dragToReorderHint": "Drag the handle to change the order.",
+  "addIngredient": "Add ingredient",
+  "pasteAList": "Paste a list",
+  "stepsExample": "Whisk the flour, milk and eggs until smooth.\nRest the batter for 10 minutes.",
+  "stepsHelper": "One step per line. They're numbered for you.",
+  "ingredient": "Ingredient",
+  "amount": "Amount",
+  "unit": "Unit",
+  "dragToReorder": "Drag to reorder",
+  "removeIngredient": "Remove ingredient",
+  "shareCollectionExplanation": "Friends you pick can see this collection and every recipe in it, including ones you add later. Only you can change it.",
+  "deleteCollectionQuestion": "Delete this collection?",
+  "deleteCollectionMessage": "\"{name}\" will be deleted. The recipes in it are kept.",
+  "@deleteCollectionMessage": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "removedFromCollection": "Removed \"{title}\" from this collection",
+  "@removedFromCollection": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "undo": "Undo",
+  "addedRecipes": "{count, plural, =1{Added 1 recipe} other{Added {count} recipes}}",
+  "@addedRecipes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "addSomeRecipesFirst": "Add some recipes first.",
+  "allRecipesAlreadyIn": "All your recipes are already in this collection.",
+  "deleteCollection": "Delete collection",
+  "collectionNotFound": "Collection not found.",
+  "sharedCollectionBanner": "Recipes they add later show up here too. Open one to save a copy.",
+  "recipeCount": "{count, plural, =1{1 recipe} other{{count} recipes}}",
+  "@recipeCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "nothingHereYet": "Nothing here yet",
+  "pickRecipesToAdd": "Pick recipes to add to this collection.",
+  "friendAddsShowUp": "Recipes {name} adds will show up here.",
+  "@friendAddsShowUp": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "addRecipes": "Add recipes",
+  "removeFromCollection": "Remove from collection",
+  "searchRecipes": "Search recipes",
+  "selectRecipes": "Select recipes",
+  "addNRecipes": "{count, plural, =1{Add 1 recipe} other{Add {count} recipes}}",
+  "@addNRecipes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "goodMorning": "Good morning",
+  "goodAfternoon": "Good afternoon",
+  "goodEvening": "Good evening",
+  "fromName": "From {name}",
+  "@fromName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "collectionCount": "{count, plural, =1{1 collection} other{{count} collections}}",
+  "@collectionCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "aFriendLower": "a friend",
+  "greetingWithName": "{greeting}, {name}",
+  "@greetingWithName": {
+    "placeholders": {
+      "greeting": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "addFirstRecipe": "Add your first recipe",
+  "addFirstRecipeMessage": "Save the dishes you love, with ingredients and steps, and find them in seconds.",
+  "yourRecipes": "Your recipes",
+  "sort": "Sort",
+  "newestFirst": "Newest first",
+  "aToZ": "A to Z",
+  "quickestFirst": "Quickest first",
+  "searchNRecipes": "{count, plural, =1{Search 1 recipe or ingredients} other{Search {count} recipes or ingredients}}",
+  "@searchNRecipes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "clearSearch": "Clear search",
+  "noMatches": "No matches",
+  "nothingFits": "Nothing fits \"{filters}\". Try another filter, or show all recipes.",
+  "@nothingFits": {
+    "placeholders": {
+      "filters": {
+        "type": "String"
+      }
+    }
+  },
+  "tryAnotherWord": "Try another word, or show all recipes.",
+  "showAll": "Show all",
+  "deletedCollectionKept": "Deleted \"{name}\". Its recipes are kept.",
+  "@deletedCollectionKept": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "newCollection": "New collection",
+  "groupYourRecipes": "Group your recipes",
+  "groupYourRecipesMessage": "Make collections like \"Weeknight dinners\" or \"Baking\" to find recipes faster.",
+  "yourCollections": "Your collections",
+  "sharedWithYou": "Shared with you",
+  "empty": "Empty",
+  "discardMessage": "What you typed won't be saved.",
+  "editCollection": "Edit collection",
+  "giveCollectionName": "Give your collection a name",
+  "name": "Name",
+  "collectionNameExample": "Weeknight dinners",
+  "description": "Description",
+  "collectionDescriptionExample": "Quick meals for busy evenings",
+  "createCollection": "Create collection",
+  "signInToAccount": "Sign in to your account",
+  "email": "Email",
+  "password": "Password",
+  "signIn": "Sign in",
+  "newHereCreateAccount": "New here? Create an account",
+  "enterFirstName": "Enter your first name",
+  "createYourAccount": "Create your account",
+  "checkEmailMessage": "Almost done! We sent a confirmation link to {email}. Open it, then sign in.",
+  "@checkEmailMessage": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "goToSignIn": "Go to sign in",
+  "firstName": "First name",
+  "lastName": "Last name",
+  "nameShownHint": "Shown to your friends; you sign in with your email",
+  "atLeast6": "At least 6 characters",
+  "createAccount": "Create account",
+  "alreadyHaveAccount": "Already have an account? Sign in",
+  "detailsSaved": "Your details are saved",
+  "yourDetails": "Your details",
+  "lastNameOptional": "Last name (optional)",
+  "friendsSeeName": "Your friends see this name when you share recipes or send requests.",
+  "emailCantChange": "You sign in with this address. It can't be changed here.",
+  "save": "Save",
+  "pageNotFound": "Page not found",
+  "pageNotFoundMessage": "This link doesn't lead anywhere. The recipe may have been deleted.",
+  "goToYourRecipes": "Go to your recipes",
+  "hoursMinutesValue": "{hours} h {minutes} min",
+  "@hoursMinutesValue": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "minutesValue": "{minutes} min",
+  "@minutesValue": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "hoursValue": "{hours} h",
+  "@hoursValue": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "servesN": "Serves {count}",
+  "@servesN": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "ingredientCount": "{count, plural, =1{1 ingredient} other{{count} ingredients}}",
+  "@ingredientCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sharedBy": "Shared by {name}",
+  "@sharedBy": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "pasteIngredients": "Paste ingredients",
+  "pasteIngredientsHint": "One per line, like \"200 g flour\" or \"2 eggs\". Bullets, numbers and headings are ignored.",
+  "pasteIngredientsExample": "200 g flour\n300 ml milk\n2 eggs\nPinch of salt",
+  "pasteFromClipboard": "Paste from clipboard",
+  "weFoundIngredients": "{count, plural, =1{We found 1 ingredient} other{We found {count} ingredients}}",
+  "@weFoundIngredients": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "addN": "Add {count}",
+  "@addN": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noLongerShared": "No longer shared",
+  "sharedWithN": "{count, plural, =1{Shared with 1 friend} other{Shared with {count} friends}}",
+  "@sharedWithN": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noFriendsAddedYet": "You haven't added any friends yet.",
+  "addFriends": "Add friends",
+  "done": "Done",
+  "anyTime": "Any time",
+  "under30Min": "Under 30 min",
+  "under1Hour": "Under 1 hour",
+  "oneHourOrMore": "1 hour or more",
+  "all": "All",
+  "mine": "Mine",
+  "sharedWithMe": "Shared with me",
+  "recipes": "Recipes",
+  "collections": "Collections",
+  "friendRequestsWaiting": "{count, plural, =1{1 friend request waiting} other{{count} friend requests waiting}}",
+  "@friendRequestsWaiting": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "errorOffline": "No connection. Check your internet and try again.",
+  "errorWrongPassword": "Wrong email or password.",
+  "errorConfirmEmailFirst": "Please confirm your email first: open the link we sent you.",
+  "errorAccountExists": "An account with this email already exists. Sign in instead.",
+  "errorPasswordTooShort": "Your password needs at least 6 characters.",
+  "errorTooManyAttempts": "Too many attempts. Please wait a few minutes and try again.",
+  "errorGeneric": "Something went wrong. Please try again.",
+  "errorOwnEmail": "That's your own email address.",
+  "errorNotAnEmail": "That doesn't look like an email address.",
+  "errorTooManyOpenRequests": "You have 50 open requests. Wait for some answers first.",
+  "errorRecipeLimit": "You've reached 2,000 recipes, the most one account can keep.",
+  "errorCollectionLimit": "You've reached 300 collections, the most one account can keep.",
+  "errorIngredientLimit": "A recipe can have at most 200 ingredients.",
+  "errorSlowDown": "Slow down a little and try again later.",
+  "errorNotFound": "Not found. It may have been deleted.",
+  "errorCheckValues": "Please check the values: times and servings must be above 0, and a title is required.",
+  "errorForbidden": "You don't have permission to do that.",
+  "errorSessionExpired": "Your session has expired. Please sign in again.",
+  "confirmLinkFailed": "That confirmation link didn't work here (it may have expired or been opened in another browser). Your email may still be confirmed: try signing in.",
+  "signInProblem": "Something went wrong with signing in. Please try again.",
+  "couldNotSignIn": "Could not sign in. Please try again.",
+  "couldNotCreateAccount": "Could not create the account. Please try again.",
+  "couldNotSaveName": "Could not save your name. Please try again.",
+  "failedLoadRecipes": "Failed to load recipes.",
+  "failedLoadRecipe": "Failed to load the recipe.",
+  "failedSaveRecipe": "Failed to save recipe.",
+  "onlyOwnerCanChange": "Only the owner can change this recipe.",
+  "couldNotSaveCopy": "Could not save a copy.",
+  "failedDeleteRecipe": "Failed to delete recipe.",
+  "failedLoadCollections": "Failed to load collections.",
+  "failedLoadCollection": "Failed to load the collection.",
+  "failedSaveCollection": "Failed to save the collection.",
+  "failedDeleteCollection": "Failed to delete the collection.",
+  "failedAddRecipes": "Failed to add recipes.",
+  "failedRemoveRecipe": "Failed to remove the recipe.",
+  "failedLoadFriends": "Failed to load your friends.",
+  "failedLoadRequests": "Failed to load friend requests.",
+  "failedLoadSent": "Failed to load your sent requests.",
+  "searchNotWorking": "Search isn't working right now.",
+  "couldNotSendRequest": "Could not send the request. Please try again.",
+  "couldNotAccept": "Could not accept the request.",
+  "couldNotRemoveRequest": "Could not remove the request.",
+  "couldNotRemoveFriend": "Could not remove this friend.",
+  "failedLoadShares": "Failed to load who this is shared with.",
+  "couldNotUpdateSharing": "Could not update sharing. Please try again.",
+  "shareOnlyOwn": "You can only share your own recipes and collections, and only with friends.",
+  "couldNotRemoveIt": "Could not remove it. Please try again."
+}

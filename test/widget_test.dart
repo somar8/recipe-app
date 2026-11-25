@@ -6,6 +6,7 @@ import 'package:recipe_app/services/errors.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized(); // the messages follow the app's language
   testWidgets('without Supabase settings the app explains how to set it up', (
     tester,
   ) async {
@@ -123,7 +124,7 @@ void main() {
         friendlyError(
           const AuthException('Password should be at least 6 characters.'),
         ),
-        'Password should be at least 6 characters.',
+        'Your password needs at least 6 characters.',
       );
     });
   });

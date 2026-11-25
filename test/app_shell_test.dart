@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:recipe_app/l10n/l10n.dart';
 import 'package:go_router/go_router.dart';
 import 'package:recipe_app/theme/app_theme.dart';
 import 'package:recipe_app/widgets/app_shell.dart';
@@ -30,7 +31,12 @@ Future<void> _pump(WidgetTester tester, Size size) async {
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
-    MaterialApp.router(theme: AppTheme.light(), routerConfig: _router()),
+    MaterialApp.router(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      theme: AppTheme.light(),
+      routerConfig: _router(),
+    ),
   );
   await tester.pumpAndSettle();
 }

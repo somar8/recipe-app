@@ -9,8 +9,12 @@ import 'package:recipe_app/main.dart' show RecipeApp;
 import 'package:recipe_app/models/recipe.dart';
 import 'package:recipe_app/services/auth_service.dart';
 import 'package:recipe_app/services/theme_settings.dart';
+import 'package:recipe_app/services/locale_settings.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:recipe_app/theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+final _backend = DemoBackend();
 
 class _MemoryStorage extends GotrueAsyncStorage {
   final _items = <String, String>{};
@@ -35,6 +39,7 @@ const _screens = [
   '/groups/new',
   '/account',
   '/account/friends',
+  '/account/details',
   '/recipes/108', // shared by Anna
   '/groups/110', // Anna's shared collection
   '/groups/110/recipes/109',
@@ -65,6 +70,11 @@ Future<void> _show(
   }
 }
 
+/// Saving the language also updates the (demo) account, which needs a real clock.
+Future<void> _setLanguage(WidgetTester tester, Locale? locale) async {
+  await tester.runAsync(() => LocaleSettings().setLanguage(locale));
+}
+
 void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
@@ -72,7 +82,7 @@ void main() {
     await Supabase.initialize(
       url: 'https://demo.recipe-app.invalid',
       publishableKey: 'demo',
-      httpClient: DemoBackend(),
+      httpClient: _backend,
       authOptions: FlutterAuthClientOptions(
         localStorage: const EmptyLocalStorage(),
         pkceAsyncStorage: _MemoryStorage(),
@@ -82,6 +92,8 @@ void main() {
     );
     AuthService().init();
     ThemeSettings().init();
+    SharedPreferences.setMockInitialValues({});
+    await LocaleSettings().init();
     Recipe.currentUserId = () => Supabase.instance.client.auth.currentUser?.id;
     await Supabase.instance.client.auth.signInWithPassword(
       email: 'demo@example.com',
@@ -105,6 +117,66 @@ void main() {
       });
     }
   }
+
+  // Every screen in each other language: German has long words, Arabic runs right to
+  // left. Phone size and at 150% text, where long words overflow first.
+  for (final code in ['ar', 'nl', 'de']) {
+    for (final path in _screens) {
+      testWidgets('$path on a phone in $code', (tester) async {
+        addTearDown(tester.view.reset);
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        await _setLanguage(tester, Locale(code));
+        addTearDown(() => _setLanguage(tester, null));
+        final semantics = tester.ensureSemantics();
+        await _show(tester, path, _sizes['phone']!);
+        expect(tester.takeException(), isNull, reason: 'layout error in $code');
+        await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+        await _show(tester, path, _sizes['phone']!, textScale: 1.5);
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: 'layout error in $code at large text',
+        );
+        semantics.dispose();
+      });
+    }
+  }
+
+  testWidgets('Arabic runs right to left in the Arabic font', (tester) async {
+    addTearDown(tester.view.reset);
+    await _setLanguage(tester, const Locale('ar'));
+    addTearDown(() => _setLanguage(tester, null));
+    await _show(tester, '/account', _sizes['phone']!);
+    final context = tester.element(find.byType(Scaffold).first);
+    expect(Directionality.of(context), TextDirection.rtl);
+    expect(
+      Theme.of(context).textTheme.bodyMedium?.fontFamily,
+      contains('IBMPlexSansArabic'),
+    );
+    expect(find.text('الحساب'), findsWidgets);
+  });
+
+  testWidgets('choosing a language in Account switches the app', (
+    tester,
+  ) async {
+    addTearDown(tester.view.reset);
+    addTearDown(() => _setLanguage(tester, null));
+    await _show(tester, '/account', _sizes['phone']!);
+    final card = find.widgetWithIcon(ListTile, Icons.language);
+    await tester.ensureVisible(card);
+    await tester.pump();
+    await tester.tap(card);
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100)); // the sheet slides up
+    }
+    await tester.tap(find.text('Deutsch'));
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+    expect(LocaleSettings().chosen, const Locale('de'));
+    expect(find.text('Sprache'), findsOneWidget);
+    expect(find.text('Konto'), findsWidgets);
+  });
 
   for (final path in _screens) {
     testWidgets('$path on a phone in dark mode', (tester) async {
@@ -211,4 +283,91 @@ void main() {
       );
     },
   );
+
+  testWidgets(
+    'Friends still searches when the database lacks a newer function',
+    (tester) async {
+      addTearDown(tester.view.reset);
+      _backend.missingFunctions.add(
+        'list_sent_requests',
+      ); // an out-of-date project
+      addTearDown(_backend.missingFunctions.clear);
+      await _show(tester, '/account/friends', _sizes['phone']!);
+      expect(find.textContaining('Some lists didn\'t load'), findsOneWidget);
+      expect(
+        find.text('Anna'),
+        findsWidgets,
+        reason: 'the friends list still shows',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Name or email'),
+        'jan',
+      );
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 200));
+      }
+      expect(
+        find.text('Jan de Boer'),
+        findsOneWidget,
+        reason: 'and search still works',
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('pasting a list fills the ingredient rows in one go', (
+    tester,
+  ) async {
+    addTearDown(tester.view.reset);
+    await _show(tester, '/recipes/new', _sizes['phone']!);
+    await tester.ensureVisible(find.text('Paste a list'));
+    await tester.tap(find.text('Paste a list'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(
+        TextField,
+        '200 g flour\n300 ml milk\n2 eggs\nPinch of salt',
+      ),
+      'Ingredients:\n- 250 g flour\n- 2 eggs\n- 1/2 tsp salt',
+    );
+    await tester.pump();
+    expect(find.text('We found 3 ingredients'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Add 3'));
+    await tester.pumpAndSettle();
+    // The rows now hold the pasted ingredients.
+    expect(find.widgetWithText(TextField, 'flour'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'eggs'), findsOneWidget);
+    expect(find.widgetWithText(TextField, '1/2'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'tsp'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Your details saves first and last name', (tester) async {
+    addTearDown(tester.view.reset);
+    await _show(tester, '/account/details', _sizes['phone']!);
+    expect(find.widgetWithText(TextFormField, 'Samer'), findsOneWidget);
+    final save = find.widgetWithText(FilledButton, 'Save');
+    expect(
+      tester.widget<FilledButton>(save).onPressed,
+      isNull,
+      reason: 'nothing changed yet',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Haddad'),
+      'Khalil',
+    );
+    await tester.pump();
+    expect(tester.widget<FilledButton>(save).onPressed, isNotNull);
+    expect(
+      find.text('Samer Khalil'),
+      findsOneWidget,
+      reason: 'the preview follows the fields',
+    );
+    await tester.tap(save);
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+    expect(find.text('Your details are saved'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

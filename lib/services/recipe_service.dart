@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/recipe.dart';
 import 'data_changes.dart';
@@ -21,7 +22,7 @@ class RecipeService {
           .order('position', referencedTable: 'recipe_ingredients');
       return rows.map(Recipe.fromDb).toList();
     } catch (e) {
-      throw Exception(friendlyError(e, fallback: 'Failed to load recipes.'));
+      throw Exception(friendlyError(e, fallback: tr.failedLoadRecipes));
     }
   }
 
@@ -35,9 +36,9 @@ class RecipeService {
           .order('position', referencedTable: 'recipe_ingredients')
           .maybeSingle();
     } catch (e) {
-      throw Exception(friendlyError(e, fallback: 'Failed to load the recipe.'));
+      throw Exception(friendlyError(e, fallback: tr.failedLoadRecipe));
     }
-    if (row == null) throw Exception('Recipe not found.');
+    if (row == null) throw Exception(tr.recipeNotFound);
     return Recipe.fromDb(row);
   }
 
@@ -57,8 +58,8 @@ class RecipeService {
       throw Exception(
         friendlyError(
           e,
-          fallback: 'Failed to save recipe.',
-          forbidden: 'Only the owner can change this recipe.',
+          fallback: tr.failedSaveRecipe,
+          forbidden: tr.onlyOwnerCanChange,
         ),
       );
     }
@@ -75,7 +76,7 @@ class RecipeService {
       markDataChanged();
       return copyId;
     } catch (e) {
-      throw Exception(friendlyError(e, fallback: 'Could not save a copy.'));
+      throw Exception(friendlyError(e, fallback: tr.couldNotSaveCopy));
     }
   }
 
@@ -84,7 +85,7 @@ class RecipeService {
       await _db.from('recipes').delete().eq('id', id);
       markDataChanged();
     } catch (e) {
-      throw Exception(friendlyError(e, fallback: 'Failed to delete recipe.'));
+      throw Exception(friendlyError(e, fallback: tr.failedDeleteRecipe));
     }
   }
 }

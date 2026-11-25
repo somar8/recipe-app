@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:recipe_app/l10n/l10n.dart';
 import 'package:recipe_app/theme/app_theme.dart';
 import 'package:recipe_app/widgets/skeleton.dart';
 
@@ -18,6 +19,8 @@ void main() {
         addTearDown(tester.view.reset);
         await tester.pumpWidget(
           MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             theme: AppTheme.light(),
             home: Scaffold(body: widget),
           ),
@@ -33,6 +36,8 @@ void main() {
   ) async {
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: AppTheme.light(),
         home: const MediaQuery(
           data: MediaQueryData(disableAnimations: true),

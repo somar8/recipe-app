@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/l10n.dart';
 import '../services/data_changes.dart';
 import '../widgets/skeleton.dart';
 import 'package:go_router/go_router.dart';
@@ -89,8 +90,8 @@ class _GroupListScreenState extends State<GroupListScreen> {
         SnackBar(
           persist:
               false, // otherwise a bar with a button never closes by itself
-          content: Text('Deleted "${g.name}". Its recipes are kept.'),
-          action: SnackBarAction(label: 'Undo', onPressed: () {}),
+          content: Text(context.l10n.deletedCollectionKept(g.name)),
+          action: SnackBarAction(label: context.l10n.undo, onPressed: () {}),
           duration: const Duration(seconds: 5),
         ),
       ).closed.then((reason) async {
@@ -152,7 +153,7 @@ class _GroupListScreenState extends State<GroupListScreen> {
           : FloatingActionButton.extended(
               onPressed: _create,
               icon: const Icon(Icons.create_new_folder_outlined),
-              label: const Text('New collection'),
+              label: Text(context.l10n.newCollection),
             ),
       body: SafeArea(
         bottom: false,
@@ -163,10 +164,9 @@ class _GroupListScreenState extends State<GroupListScreen> {
             : _groups.isEmpty
             ? EmptyState(
                 icon: Icons.folder_special_outlined,
-                title: 'Group your recipes',
-                message:
-                    'Make collections like "Weeknight dinners" or "Baking" to find recipes faster.',
-                actionLabel: 'New collection',
+                title: context.l10n.groupYourRecipes,
+                message: context.l10n.groupYourRecipesMessage,
+                actionLabel: context.l10n.newCollection,
                 onAction: _create,
               )
             : RefreshIndicator(
@@ -189,12 +189,12 @@ class _GroupListScreenState extends State<GroupListScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Your collections',
+                                  context.l10n.yourCollections,
                                   style: t.headlineMedium,
                                 ),
                                 const SizedBox(height: Gap.xs),
                                 Text(
-                                  '${visible.length} ${visible.length == 1 ? 'collection' : 'collections'}',
+                                  context.l10n.collectionCount(visible.length),
                                   style: t.bodyMedium?.copyWith(
                                     color: Theme.of(
                                       context,
@@ -219,7 +219,9 @@ class _GroupListScreenState extends State<GroupListScreen> {
                               0,
                             ),
                             sliver: SliverToBoxAdapter(
-                              child: SectionHeader(title: 'Shared with you'),
+                              child: SectionHeader(
+                                title: context.l10n.sharedWithYou,
+                              ),
                             ),
                           ),
                           ..._grid(
@@ -273,10 +275,10 @@ class _CollectionCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       !group.isMine
-                          ? 'From ${group.ownerName ?? 'a friend'} · ${recipes.length} ${recipes.length == 1 ? 'recipe' : 'recipes'}'
+                          ? '${context.l10n.fromName(group.ownerName ?? context.l10n.aFriendLower)} · ${context.l10n.recipeCount(recipes.length)}'
                           : group.description?.isNotEmpty == true
                           ? group.description!
-                          : '${recipes.length} ${recipes.length == 1 ? 'recipe' : 'recipes'}',
+                          : context.l10n.recipeCount(recipes.length),
                       style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -287,7 +289,9 @@ class _CollectionCard extends StatelessWidget {
                       children: [
                         for (final r in recipes.take(4))
                           Padding(
-                            padding: const EdgeInsets.only(right: Gap.xs),
+                            padding: const EdgeInsetsDirectional.only(
+                              end: Gap.xs,
+                            ),
                             child: FoodArt(title: r.title, size: 28, radius: 8),
                           ),
                         if (recipes.length > 4)
@@ -299,7 +303,7 @@ class _CollectionCard extends StatelessWidget {
                           ),
                         if (recipes.isEmpty)
                           Text(
-                            'Empty',
+                            context.l10n.empty,
                             style: t.labelMedium?.copyWith(
                               color: c.onSurfaceVariant,
                             ),
