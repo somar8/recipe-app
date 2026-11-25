@@ -31,7 +31,7 @@ changes only their own recipes and groups; the database enforces this itself
 - `lib/models/` – `Recipe`, `RecipeIngredient`, `GroupRecipes`, read from and written to the database
 - `lib/screens/` – the 8 screens
 - `supabase/schema.sql` – tables, access rules, the `save_recipe` function (saves a recipe and its ingredients in one step) and `ping`
-- `supabase/tests/` – 77 database checks on a throwaway local Postgres: `bash supabase/tests/run.sh` (needs Postgres installed; nothing touches Supabase)
+- `supabase/tests/` – 162 database checks on a throwaway local Postgres: `bash supabase/tests/run.sh` (needs Postgres installed; nothing touches Supabase)
 - `test/` – app tests: `flutter test` (109 tests). `screens_test.dart` opens every screen on the demo data at
   phone, tablet and laptop size, in dark mode and at 200% text, and checks layout, tap-target size, button labels
   and text contrast
@@ -59,6 +59,13 @@ builds it: it builds `lib/main.dart`.
 3. **SQL Editor → New query**: paste all of `supabase/schema.sql` and click **Run**. (Run it again after each update; it keeps your data.)
 4. Click **Connect** at the top and copy the **Project URL** (`https://<project-id>.supabase.co`).
 5. **Project Settings → API Keys**: copy the **publishable key**. Never use the secret key in the app.
+
+**Sharing a Supabase project with Word Buddy?** That works: the Recipe App's tables and functions have their own
+names (`recipe_profiles`, `sync_recipe_profile`), so they never touch Word Buddy's. Keep in mind:
+- Both apps then share the same accounts: one email and password signs in to both.
+- Under **Authentication → URL Configuration**, add both apps' links to **Redirect URLs**.
+- If `schema.sql` stops with "An earlier Recipe App setup replaced Word Buddy's sync_profile function", run
+  `word-buddy/supabase/schema.sql` once to restore it, then run the Recipe `schema.sql` again.
 
 ### 2. Run it on your computer
 ```bash

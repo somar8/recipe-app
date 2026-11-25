@@ -35,7 +35,7 @@ class FriendService {
       final rows = await _db
           .from('friend_requests')
           .select(
-            'id, created_at, sender:profiles!friend_requests_from_user_fkey(id, display_name, email)',
+            'id, created_at, sender:recipe_profiles!friend_requests_from_user_fkey(id, display_name, email)',
           )
           .eq('to_email', _myEmail)
           .order('created_at', ascending: false);

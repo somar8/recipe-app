@@ -7,7 +7,7 @@ class RecipeService {
   SupabaseClient get _db => Supabase.instance.client;
 
   static const _select =
-      '*, recipe_ingredients(*), owner:profiles!recipes_owner_profile_fkey(display_name)';
+      '*, recipe_ingredients(*), owner:recipe_profiles!recipes_owner_profile_fkey(display_name)';
 
   Future<List<Recipe>> getAll({String? title}) async {
     try {

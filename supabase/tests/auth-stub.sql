@@ -6,7 +6,9 @@ create table auth.users (
   id uuid primary key default gen_random_uuid(),
   email text,
   raw_user_meta_data jsonb,
-  created_at timestamptz default now()
+  created_at timestamptz default now(),
+  email_confirmed_at timestamptz,
+  last_sign_in_at timestamptz
 );
 -- Like Supabase: the signed-in user's id comes from the request's JWT.
 create function auth.uid() returns uuid language sql stable as $$

@@ -8,7 +8,7 @@ class GroupService {
 
   // recipe_group_items links groups and recipes, so Supabase can nest the recipes directly.
   static const _select =
-      '*, recipes(*), owner:profiles!recipe_groups_owner_profile_fkey(display_name)';
+      '*, recipes(*), owner:recipe_profiles!recipe_groups_owner_profile_fkey(display_name)';
 
   Future<List<GroupRecipes>> getAll() async {
     try {

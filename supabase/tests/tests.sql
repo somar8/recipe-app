@@ -161,9 +161,9 @@ insert into auth.users (id, email, raw_user_meta_data) values
   ('dddddddd-0000-0000-0000-000000000004', 'dave@example.com', '{"username":"Dave"}'),
   ('eeeeeeee-0000-0000-0000-000000000005', 'erin@example.com', null);
 
-select pg_temp.check((select display_name = 'Carol' and email = 'carol@example.com' from public.profiles
+select pg_temp.check((select display_name = 'Carol' and email = 'carol@example.com' from public.recipe_profiles
   where id = 'cccccccc-0000-0000-0000-000000000003'), 'a profile is made at sign-up, with the name and a lower-case email');
-select pg_temp.check((select display_name = 'erin' from public.profiles where id = 'eeeeeeee-0000-0000-0000-000000000005'),
+select pg_temp.check((select display_name = 'erin' from public.recipe_profiles where id = 'eeeeeeee-0000-0000-0000-000000000005'),
   'without a name, the profile uses the first part of the email');
 
 -- ---------- Carol sends requests ----------
@@ -174,7 +174,7 @@ select public.send_friend_request('frank@example.com'); -- no account (yet)
 select public.send_friend_request('dave@example.com');  -- again: no duplicate
 select pg_temp.check((select array_agg(to_email order by to_email) = array['dave@example.com','frank@example.com']
   from public.friend_requests), 'requests are stored once, in lower case, for accounts and non-accounts alike');
-select pg_temp.check((select count(*) = 1 from public.profiles), 'the sender cannot see the profile of someone they asked (no hint they have an account)');
+select pg_temp.check((select count(*) = 1 from public.recipe_profiles), 'the sender cannot see the profile of someone they asked (no hint they have an account)');
 do $$ begin
   perform public.send_friend_request('carol@example.com');
   perform pg_temp.check(false, 'you cannot send a request to yourself');
@@ -191,7 +191,7 @@ exception when insufficient_privilege then perform pg_temp.check(true, 'requests
 -- ---------- Erin, a stranger, sees nothing ----------
 select pg_temp.act_as('eeeeeeee-0000-0000-0000-000000000005', 'erin@example.com');
 select pg_temp.check((select count(*) = 0 from public.friend_requests), 'a stranger sees no one else''s requests');
-select pg_temp.check((select count(*) = 1 from public.profiles), 'a stranger sees only their own profile');
+select pg_temp.check((select count(*) = 1 from public.recipe_profiles), 'a stranger sees only their own profile');
 reset role;
 select id as dave_request from public.friend_requests where to_email = 'dave@example.com' \gset
 select set_config('my.dave_request', :'dave_request', false) \g /dev/null
@@ -207,7 +207,7 @@ select pg_temp.check(true, 'a stranger''s delete is ignored (checked below)');
 -- ---------- Dave sees and accepts ----------
 select pg_temp.act_as('dddddddd-0000-0000-0000-000000000004', 'dave@example.com');
 select pg_temp.check((select count(*) = 1 from public.friend_requests), 'the addressee sees the waiting request');
-select pg_temp.check((select display_name = 'Carol' from public.profiles where id = 'cccccccc-0000-0000-0000-000000000003'),
+select pg_temp.check((select display_name = 'Carol' from public.recipe_profiles where id = 'cccccccc-0000-0000-0000-000000000003'),
   'the addressee can see who sent it');
 select pg_temp.check(public.accept_friend_request(:dave_request) = 'cccccccc-0000-0000-0000-000000000003', 'accepting makes you friends');
 select pg_temp.check((select count(*) = 0 from public.friend_requests where to_email = 'dave@example.com'), 'the request is gone after accepting');
@@ -325,7 +325,7 @@ select pg_temp.check((select count(*) = 1 from public.friendships), 'the other f
 -- ---------- Signed-out visitors ----------
 set role anon;
 do $$ begin
-  perform count(*) from public.profiles;
+  perform count(*) from public.recipe_profiles;
   perform pg_temp.check(false, 'a signed-out visitor cannot read profiles');
 exception when insufficient_privilege then perform pg_temp.check(true, 'a signed-out visitor cannot read profiles'); end $$;
 do $$ begin
