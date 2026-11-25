@@ -53,9 +53,13 @@ class _RecipeFormScreenState extends State<RecipeFormScreen> {
   final List<_IngredientFields> _ingredients = [];
 
   bool _loading = false;
+
+  /// Editing, but the item could not be loaded: show an error, never an empty form
+  /// (saving that would overwrite the real item with blanks).
+  bool _loadFailed = false;
   bool _saving = false;
   String? _error;
-  String _savedSnapshot = '';
+  String _savedSnapshot = ''; // set in initState (new) or after loading (edit)
 
   @override
   void initState() {
@@ -107,6 +111,11 @@ class _RecipeFormScreenState extends State<RecipeFormScreen> {
     });
     try {
       final r = await _recipeService.getById(widget.editId!);
+      if (!mounted) return; // closed while loading
+      for (final row in _ingredients) {
+        row.dispose();
+      }
+      _ingredients.clear();
       _title.text = r.title;
       _description.text = r.description ?? '';
       _instructions.text = r.instructions ?? '';
@@ -124,6 +133,7 @@ class _RecipeFormScreenState extends State<RecipeFormScreen> {
         setState(() {
           _error = errorText(e);
           _loading = false;
+          _loadFailed = true;
         });
       }
     }
@@ -224,7 +234,7 @@ class _RecipeFormScreenState extends State<RecipeFormScreen> {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: _saving || !_hasChanges,
+      canPop: _saving || _loading || _loadFailed || !_hasChanges,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) _confirmLeave();
       },
@@ -239,7 +249,15 @@ class _RecipeFormScreenState extends State<RecipeFormScreen> {
           ),
           title: Text(_isEdit ? 'Edit recipe' : 'New recipe'),
         ),
-        body: _loading
+        body: _loadFailed
+            ? ErrorState(
+                message: _error ?? 'Could not load this.',
+                onRetry: () {
+                  setState(() => _loadFailed = false);
+                  _load();
+                },
+              )
+            : _loading
             ? const Center(child: CircularProgressIndicator())
             : Form(
                 key: _formKey,
@@ -254,7 +272,7 @@ class _RecipeFormScreenState extends State<RecipeFormScreen> {
                   children: [PageWidth(maxWidth: 680, child: _fields(context))],
                 ),
               ),
-        bottomNavigationBar: _loading
+        bottomNavigationBar: _loading || _loadFailed
             ? null
             : SafeArea(
                 child: Padding(
@@ -304,6 +322,7 @@ class _RecipeFormScreenState extends State<RecipeFormScreen> {
     ) => TextFormField(
       controller: ctrl,
       keyboardType: TextInputType.number,
+      textInputAction: TextInputAction.next,
       inputFormatters: numberFormat,
       validator: _positiveNumber,
       decoration: InputDecoration(

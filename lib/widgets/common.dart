@@ -106,12 +106,12 @@ class RecipeCard extends StatelessWidget {
                           ),
                         if (recipe.servings != null)
                           MetaLabel(
-                            icon: Icons.people_outline,
-                            text: '${recipe.servings}',
+                            icon: Icons.restaurant_outlined,
+                            text: 'Serves ${recipe.servings}',
                           ),
                         if (!recipe.isMine)
                           MetaLabel(
-                            icon: Icons.people_outline,
+                            icon: Icons.person_outline,
                             text: 'From ${recipe.ownerName ?? 'a friend'}',
                           ),
                         if (count > 0)
@@ -175,6 +175,7 @@ class EmptyState extends StatelessWidget {
     required this.title,
     required this.message,
     this.actionLabel,
+    this.actionIcon = Icons.add,
     this.onAction,
   });
 
@@ -182,6 +183,7 @@ class EmptyState extends StatelessWidget {
   final String title;
   final String message;
   final String? actionLabel;
+  final IconData actionIcon;
   final VoidCallback? onAction;
 
   @override
@@ -217,7 +219,7 @@ class EmptyState extends StatelessWidget {
                 const SizedBox(height: Gap.xl),
                 FilledButton.icon(
                   onPressed: onAction,
-                  icon: const Icon(Icons.add),
+                  icon: Icon(actionIcon),
                   label: Text(actionLabel!),
                 ),
               ],

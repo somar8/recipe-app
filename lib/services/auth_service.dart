@@ -13,7 +13,33 @@ class AuthService extends ChangeNotifier {
 
   /// Call once after Supabase.initialize. Tells listeners (the router) when you sign in or out.
   void init() {
-    _auth.onAuthStateChange.listen((_) => notifyListeners());
+    _auth.onAuthStateChange.listen(
+      (_) => notifyListeners(),
+      // Supabase reports some problems here instead of throwing, for example a
+      // confirmation link opened in another browser or after it expired.
+      onError: (Object e) {
+        problem.value = _isLinkProblem(e)
+            ? 'That confirmation link didn\'t work here (it may have expired or been opened '
+                  'in another browser). Your email may still be confirmed: try signing in.'
+            : friendlyError(
+                e,
+                fallback:
+                    'Something went wrong with signing in. Please try again.',
+              );
+        notifyListeners();
+      },
+    );
+  }
+
+  /// A sign-in problem to show on the sign-in screen; cleared once shown.
+  final problem = ValueNotifier<String?>(null);
+
+  static bool _isLinkProblem(Object e) {
+    final t = e.toString().toLowerCase();
+    return t.contains('code verifier') ||
+        t.contains('pkce') ||
+        t.contains('otp') ||
+        t.contains('expired');
   }
 
   bool get isLoggedIn => _auth.currentSession != null;

@@ -51,6 +51,8 @@ final _specs = <_Spec>[
     Shape.fullBleed,
     iconScale: 0.44,
   ),
+  // iPhone home screen: square and opaque, or iOS adds black corners.
+  const _Spec('web/icons/apple-touch-icon.png', 180, Shape.fullBleed),
   for (final (dir, size) in [
     ('mdpi', 48),
     ('hdpi', 72),
@@ -127,7 +129,7 @@ void main() {
         return data!.buffer.asUint8List();
       });
       File(spec.path).writeAsBytesSync(bytes!);
-      if (spec.path.startsWith(_ios)) {
+      if (spec.path.startsWith(_ios) || spec.path.endsWith('apple-touch-icon.png')) {
         await tester.runAsync(() => _removeAlpha(spec.path));
       }
     }

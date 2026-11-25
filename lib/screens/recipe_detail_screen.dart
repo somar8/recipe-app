@@ -79,7 +79,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   }
 
   Future<void> _edit() async {
-    await context.push('/recipes/${widget.id}/edit');
+    // The form returns the id only when something was saved; cancelling keeps your ticks.
+    final saved = await context.push<int>('/recipes/${widget.id}/edit');
+    if (saved == null) return;
     _checked.clear();
     _done.clear();
     _load();
@@ -101,14 +103,18 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     try {
       final id = await _recipeService.copy(widget.id);
       if (!mounted) return;
+      // Keep the router: the page may be gone when Open is tapped.
+      final router = GoRouter.of(context);
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
           SnackBar(
+            persist:
+                false, // otherwise a bar with a button never closes by itself
             content: const Text('Saved to your recipes'),
             action: SnackBarAction(
               label: 'Open',
-              onPressed: () => context.go('/recipes/$id'),
+              onPressed: () => router.go('/recipes/$id'),
             ),
           ),
         );
@@ -579,44 +585,52 @@ class _IngredientRow extends StatelessWidget {
       ingredient.unit,
     ].where((s) => s != null && s.isNotEmpty).join(' ');
     final faded = checked ? c.onSurfaceVariant.withValues(alpha: 0.7) : null;
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: Gap.lg,
-          vertical: Gap.md,
-        ),
-        child: Row(
-          children: [
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 180),
-              transitionBuilder: (child, anim) =>
-                  ScaleTransition(scale: anim, child: child),
-              child: Icon(
-                checked ? Icons.check_circle : Icons.radio_button_unchecked,
-                key: ValueKey(checked),
-                color: checked ? c.secondary : c.outline,
-                size: 22,
-              ),
+    // Read out as one checkbox: "Flour, 200 g, checked".
+    return MergeSemantics(
+      child: Semantics(
+        checked: checked,
+        label: [ingredient.name, if (amount.isNotEmpty) amount].join(', '),
+        excludeSemantics: true,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: Gap.lg,
+              vertical: Gap.md,
             ),
-            const SizedBox(width: Gap.md),
-            Expanded(
-              child: Text(
-                ingredient.name,
-                style: t.bodyLarge?.copyWith(
-                  color: faded,
-                  decoration: checked ? TextDecoration.lineThrough : null,
+            child: Row(
+              children: [
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 180),
+                  transitionBuilder: (child, anim) =>
+                      ScaleTransition(scale: anim, child: child),
+                  child: Icon(
+                    checked ? Icons.check_circle : Icons.radio_button_unchecked,
+                    key: ValueKey(checked),
+                    color: checked ? c.secondary : c.outline,
+                    size: 22,
+                  ),
                 ),
-              ),
+                const SizedBox(width: Gap.md),
+                Expanded(
+                  child: Text(
+                    ingredient.name,
+                    style: t.bodyLarge?.copyWith(
+                      color: faded,
+                      decoration: checked ? TextDecoration.lineThrough : null,
+                    ),
+                  ),
+                ),
+                if (amount.isNotEmpty)
+                  Text(
+                    amount,
+                    style: t.bodyMedium?.copyWith(
+                      color: faded ?? c.onSurfaceVariant,
+                    ),
+                  ),
+              ],
             ),
-            if (amount.isNotEmpty)
-              Text(
-                amount,
-                style: t.bodyMedium?.copyWith(
-                  color: faded ?? c.onSurfaceVariant,
-                ),
-              ),
-          ],
+          ),
         ),
       ),
     );
@@ -648,44 +662,60 @@ class _StepRow extends StatelessWidget {
     final Color badgeFg = done
         ? c.onSecondaryContainer
         : (current ? c.onPrimary : c.onPrimaryContainer);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(Corners.sm),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          vertical: Gap.md,
-          horizontal: Gap.xs,
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 32,
-              height: 32,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(color: badgeBg, shape: BoxShape.circle),
-              child: done
-                  ? Icon(Icons.check, size: 18, color: badgeFg)
-                  : Text(
-                      '$number',
-                      style: t.labelLarge?.copyWith(color: badgeFg),
-                    ),
+    // Read out as "Step 2, up next: …" or "Step 1, done: …".
+    return MergeSemantics(
+      child: Semantics(
+        checked: done,
+        label:
+            'Step $number${done
+                ? ', done'
+                : current
+                ? ', up next'
+                : ''}: $text',
+        excludeSemantics: true,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(Corners.sm),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              vertical: Gap.md,
+              horizontal: Gap.xs,
             ),
-            const SizedBox(width: Gap.md),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 5),
-                child: Text(
-                  text,
-                  style: t.bodyLarge?.copyWith(
-                    height: 1.45,
-                    color: done ? c.onSurfaceVariant : null,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: 32,
+                  height: 32,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: badgeBg,
+                    shape: BoxShape.circle,
+                  ),
+                  child: done
+                      ? Icon(Icons.check, size: 18, color: badgeFg)
+                      : Text(
+                          '$number',
+                          style: t.labelLarge?.copyWith(color: badgeFg),
+                        ),
+                ),
+                const SizedBox(width: Gap.md),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 5),
+                    child: Text(
+                      text,
+                      style: t.bodyLarge?.copyWith(
+                        height: 1.45,
+                        color: done ? c.onSurfaceVariant : null,
+                      ),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

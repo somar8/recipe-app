@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/data_changes.dart';
 import '../widgets/skeleton.dart';
 import 'package:go_router/go_router.dart';
 import '../models/group_recipes.dart';
@@ -25,7 +26,19 @@ class _GroupListScreenState extends State<GroupListScreen> {
   @override
   void initState() {
     super.initState();
+    // Changes made elsewhere (another tab, a shared item) refresh this list quietly.
+    dataChanges.addListener(_onDataChanged);
     _load();
+  }
+
+  void _onDataChanged() {
+    if (mounted) _load(quiet: true);
+  }
+
+  @override
+  void dispose() {
+    dataChanges.removeListener(_onDataChanged);
+    super.dispose();
   }
 
   Future<void> _load({bool quiet = false}) async {
@@ -74,6 +87,8 @@ class _GroupListScreenState extends State<GroupListScreen> {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
+          persist:
+              false, // otherwise a bar with a button never closes by itself
           content: Text('Deleted "${g.name}". Its recipes are kept.'),
           action: SnackBarAction(label: 'Undo', onPressed: () {}),
           duration: const Duration(seconds: 5),

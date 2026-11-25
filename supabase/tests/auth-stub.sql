@@ -7,7 +7,7 @@ create table auth.users (
   email text,
   raw_user_meta_data jsonb,
   created_at timestamptz default now(),
-  email_confirmed_at timestamptz,
+  email_confirmed_at timestamptz default now(), -- confirmed unless a test says otherwise
   last_sign_in_at timestamptz
 );
 -- Like Supabase: the signed-in user's id comes from the request's JWT.

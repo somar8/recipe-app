@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 String friendlyError(
   Object error, {
   String fallback = 'Something went wrong. Please try again.',
+  String forbidden = 'You don\'t have permission to do that.',
 }) {
   if (error is AuthException) {
     final msg = error.message.toLowerCase();
@@ -37,7 +38,7 @@ String friendlyError(
       case '23514':
         return 'Please check the values: times and servings must be above 0, and a title is required.';
       case '42501':
-        return 'You can\'t do that. You can only share your own recipes, and only with friends.';
+        return forbidden;
     }
     if (error.code == 'PGRST301' ||
         error.message.toLowerCase().contains('jwt')) {

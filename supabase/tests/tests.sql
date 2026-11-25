@@ -172,8 +172,8 @@ set role authenticated;
 select public.send_friend_request('  DAVE@example.com ');
 select public.send_friend_request('frank@example.com'); -- no account (yet)
 select public.send_friend_request('dave@example.com');  -- again: no duplicate
-select pg_temp.check((select array_agg(to_email order by to_email) = array['dave@example.com','frank@example.com']
-  from public.friend_requests), 'requests are stored once, in lower case, for accounts and non-accounts alike');
+select pg_temp.check((select array_agg(email_label order by email_label) = array['dave@example.com','frank@example.com']
+  from public.list_sent_requests()), 'requests are stored once, in lower case, for accounts and non-accounts alike');
 select pg_temp.check((select count(*) = 1 from public.recipe_profiles), 'the sender cannot see the profile of someone they asked (no hint they have an account)');
 do $$ begin
   perform public.send_friend_request('carol@example.com');
@@ -210,12 +210,12 @@ select pg_temp.check((select count(*) = 1 from public.friend_requests), 'the add
 select pg_temp.check((select display_name = 'Carol' from public.recipe_profiles where id = 'cccccccc-0000-0000-0000-000000000003'),
   'the addressee can see who sent it');
 select pg_temp.check(public.accept_friend_request(:dave_request) = 'cccccccc-0000-0000-0000-000000000003', 'accepting makes you friends');
-select pg_temp.check((select count(*) = 0 from public.friend_requests where to_email = 'dave@example.com'), 'the request is gone after accepting');
+select pg_temp.check((select count(*) = 0 from public.friend_requests), 'the request is gone after accepting');
 select pg_temp.check((select array_agg(display_name) = array['Carol'] from public.list_friends()), 'list_friends shows the new friend by name');
 select pg_temp.act_as('cccccccc-0000-0000-0000-000000000003', 'carol@example.com');
 select pg_temp.check((select array_agg(display_name) = array['Dave'] from public.list_friends()), 'the friendship shows for both');
 select public.send_friend_request('dave@example.com');
-select pg_temp.check((select count(*) = 0 from public.friend_requests where to_email = 'dave@example.com'),
+select pg_temp.check((select count(*) = 0 from public.list_sent_requests() where email_label = 'dave@example.com'),
   'asking an existing friend again does nothing');
 
 -- ---------- Carol's recipes and sharing ----------
@@ -333,3 +333,118 @@ do $$ begin
   perform pg_temp.check(false, 'a signed-out visitor cannot send requests');
 exception when insufficient_privilege then perform pg_temp.check(true, 'a signed-out visitor cannot send requests'); end $$;
 reset role;
+
+-- =====================================================================
+-- Finding people while typing
+-- =====================================================================
+reset role;
+update auth.users set raw_user_meta_data = '{"username":"Dave van Dam"}' where id = 'dddddddd-0000-0000-0000-000000000004';
+insert into auth.users (id, email, raw_user_meta_data)
+select ('a0000000-0000-0000-0000-00000000000' || n)::uuid, 'zed' || n || '@mail.example', json_build_object('username', 'Zed ' || n)::jsonb
+from generate_series(1, 6) n;
+insert into auth.users (id, email, raw_user_meta_data) values ('b0000000-0000-0000-0000-000000000001', 'jo@example.com', '{"username":"Jo Bloggs"}'),
+  ('b0000000-0000-0000-0000-000000000002', 'kim.de.wit@example.com', '{"username":"Kim"}');
+
+select pg_temp.act_as('cccccccc-0000-0000-0000-000000000003', 'carol@example.com');
+set role authenticated;
+select pg_temp.check((select count(*) = 0 from public.search_people('da')), 'search starts at 3 letters');
+select pg_temp.check((select display_name = 'Dave van Dam' and email_hint = 'da***@example.com' and status = 'none'
+  from public.search_people('dav')), 'a name start finds the person, with only a hint of the email');
+select pg_temp.check((select count(*) = 1 from public.search_people('van')), 'a later word of the name matches too');
+select pg_temp.check((select display_name = 'Kim' from public.search_people('KIM.de')), 'the start of an email (before the @) matches, ignoring capitals');
+select pg_temp.check((select count(*) = 0 from public.search_people('kim.de.wit@example.com')),
+  'a whole email address finds nobody, so it never confirms an account');
+select pg_temp.check((select count(*) = 0 from public.search_people('example.com')),
+  'typing a domain does not list everyone with that email provider');
+select pg_temp.check((select count(*) = 0 from public.search_people('%%%')) and (select count(*) = 0 from public.search_people('___')),
+  'typed % and _ are plain letters, not wildcards');
+select pg_temp.check((select count(*) = 0 from public.search_people('car')), 'you never find yourself');
+select pg_temp.check((select status = 'friend' from public.search_people('eri')), 'friends are marked as friends');
+select pg_temp.check((select count(*) = 5 from public.search_people('zed')), 'at most 5 people are returned');
+select pg_temp.check((select bool_and(email_hint not like 'zed_@%' and email_hint like '%***@mail.example') from public.search_people('zed')),
+  'no full email address is ever returned');
+select pg_temp.check((select email_hint = 'er***@example.com' from public.search_people('erin')), 'only the first two letters of an email show');
+select pg_temp.check((select email_hint = 'j***@example.com' from public.search_people('jo b')), 'a very short email shows only its first letter');
+
+select public.send_friend_request_to('dddddddd-0000-0000-0000-000000000004');
+select pg_temp.check((select status = 'sent' from public.search_people('dave')), 'tapping a person sends them a request');
+
+select pg_temp.act_as('dddddddd-0000-0000-0000-000000000004', 'dave@example.com');
+select pg_temp.check((select status = 'received' from public.search_people('carol')), 'the other person sees that you asked them');
+select public.send_friend_request_to('cccccccc-0000-0000-0000-000000000003');
+select pg_temp.check((select status = 'friend' from public.search_people('carol')), 'adding someone who asked you makes you friends');
+do $$ begin
+  perform public.send_friend_request_to('00000000-0000-0000-0000-000000000000');
+  perform pg_temp.check(false, 'sending to an unknown person is refused');
+exception when no_data_found then perform pg_temp.check(true, 'sending to an unknown person is refused'); end $$;
+
+reset role;
+set role anon;
+do $$ begin
+  perform * from public.search_people('dave');
+  perform pg_temp.check(false, 'a signed-out visitor cannot search for people');
+exception when insufficient_privilege then perform pg_temp.check(true, 'a signed-out visitor cannot search for people'); end $$;
+reset role;
+
+-- =====================================================================
+-- Hardening: hidden addresses, rate limits, ids, sizes, confirmed email
+-- =====================================================================
+reset role;
+select pg_temp.act_as('cccccccc-0000-0000-0000-000000000003', 'carol@example.com');
+set role authenticated;
+select public.send_friend_request_to('b0000000-0000-0000-0000-000000000002'); -- Kim, picked from the search
+select pg_temp.check((select display_name = 'Kim' and email_label = 'ki***@example.com' from public.list_sent_requests()
+  where display_name = 'Kim'), 'a person picked from the search shows in your sent list by name, email hidden');
+do $$ begin
+  perform to_email from public.friend_requests;
+  perform pg_temp.check(false, 'nobody can read the address a request was sent to');
+exception when insufficient_privilege then perform pg_temp.check(true, 'nobody can read the address a request was sent to'); end $$;
+
+-- Searching too fast is refused (60 a minute).
+do $$ begin
+  for i in 1..61 loop perform * from public.search_people('zed'); end loop;
+  perform pg_temp.check(false, 'searching too fast is refused');
+exception when program_limit_exceeded then perform pg_temp.check(true, 'searching too fast is refused'); end $$;
+
+-- Sending and cancelling over and over is refused too (30 a day).
+do $$ begin
+  for i in 1..31 loop
+    perform public.send_friend_request('spam' || i || '@example.com');
+    delete from public.friend_requests where from_user = auth.uid();
+  end loop;
+  perform pg_temp.check(false, 'sending and cancelling requests over and over is refused');
+exception when program_limit_exceeded then perform pg_temp.check(true, 'sending and cancelling requests over and over is refused'); end $$;
+
+do $$ begin
+  insert into public.recipes (id, title) values (987654, 'Future id');
+  perform pg_temp.check(false, 'nobody can choose a recipe id (which would block everyone else''s saves)');
+exception when others then perform pg_temp.check(sqlstate = '428C9', 'nobody can choose a recipe id (which would block everyone else''s saves)'); end $$;
+do $$ begin
+  perform public.save_recipe(jsonb_build_object('title', repeat('x', 201)));
+  perform pg_temp.check(false, 'a 201-character title is refused');
+exception when check_violation then perform pg_temp.check(true, 'a 201-character title is refused'); end $$;
+do $$ begin
+  perform public.save_recipe(jsonb_build_object('title', 'Big', 'servings', 5000));
+  perform pg_temp.check(false, 'servings above 1000 are refused');
+exception when check_violation then perform pg_temp.check(true, 'servings above 1000 are refused'); end $$;
+do $$ begin
+  perform public.save_recipe(jsonb_build_object('title', 'Long list',
+    'ingredients', (select jsonb_agg(jsonb_build_object('name', 'item ' || n)) from generate_series(1, 201) n)));
+  perform pg_temp.check(false, 'a recipe with more than 200 ingredients is refused');
+exception when program_limit_exceeded then perform pg_temp.check(true, 'a recipe with more than 200 ingredients is refused'); end $$;
+
+-- Only a confirmed email can accept requests.
+reset role;
+update auth.users set email_confirmed_at = null where id = 'b0000000-0000-0000-0000-000000000002';
+select id as kim_request from public.friend_requests where to_user = 'b0000000-0000-0000-0000-000000000002' \gset
+select set_config('my.kim_request', :'kim_request', false) \g /dev/null
+select pg_temp.act_as('b0000000-0000-0000-0000-000000000002', 'kim.de.wit@example.com');
+set role authenticated;
+do $$ begin
+  perform public.accept_friend_request(current_setting('my.kim_request')::bigint);
+  perform pg_temp.check(false, 'an unconfirmed email cannot accept requests');
+exception when insufficient_privilege then perform pg_temp.check(true, 'an unconfirmed email cannot accept requests'); end $$;
+reset role;
+select pg_temp.check((select count(*) = 0 from pg_class c
+  where c.relname in ('rate_events') and has_table_privilege('authenticated', c.oid, 'select')),
+  'nobody can read the rate log directly');

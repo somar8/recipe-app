@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/recipe.dart';
+import 'data_changes.dart';
 import 'errors.dart';
 
 /// Recipes of the signed-in user. The database only ever returns the user's own rows.
@@ -51,8 +52,15 @@ class RecipeService {
     try {
       id = (await _db.rpc('save_recipe', params: {'recipe': recipe}) as num)
           .toInt();
+      markDataChanged();
     } catch (e) {
-      throw Exception(friendlyError(e, fallback: 'Failed to save recipe.'));
+      throw Exception(
+        friendlyError(
+          e,
+          fallback: 'Failed to save recipe.',
+          forbidden: 'Only the owner can change this recipe.',
+        ),
+      );
     }
     return getById(id);
   }
@@ -61,8 +69,11 @@ class RecipeService {
   /// Returns the new recipe's id.
   Future<int> copy(int id) async {
     try {
-      return (await _db.rpc('copy_recipe', params: {'source_id': id}) as num)
-          .toInt();
+      final copyId =
+          (await _db.rpc('copy_recipe', params: {'source_id': id}) as num)
+              .toInt();
+      markDataChanged();
+      return copyId;
     } catch (e) {
       throw Exception(friendlyError(e, fallback: 'Could not save a copy.'));
     }
@@ -71,6 +82,7 @@ class RecipeService {
   Future<void> delete(int id) async {
     try {
       await _db.from('recipes').delete().eq('id', id);
+      markDataChanged();
     } catch (e) {
       throw Exception(friendlyError(e, fallback: 'Failed to delete recipe.'));
     }

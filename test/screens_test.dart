@@ -132,4 +132,83 @@ void main() {
       );
     });
   }
+
+  testWidgets(
+    'typing a name in Friends shows matching people with hidden emails',
+    (tester) async {
+      addTearDown(tester.view.reset);
+      await _show(tester, '/account/friends', _sizes['phone']!);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Name or email'),
+        'ann',
+      );
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 200));
+      }
+      expect(find.text('Anna'), findsWidgets); // already a friend
+      expect(find.text('Anneke Jansen'), findsOneWidget);
+      expect(
+        find.text('an***@example.com'),
+        findsNWidgets(2),
+      ); // Anna and Anneke
+      expect(find.text('anneke.jansen@example.com'), findsNothing);
+      expect(find.text('Friends'), findsWidgets);
+      expect(find.widgetWithText(FilledButton, 'Add'), findsWidgets);
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Add').first);
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 200));
+      }
+      expect(find.text('Requested'), findsWidgets);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('a broken link shows "Page not found" with a way back', (
+    tester,
+  ) async {
+    addTearDown(tester.view.reset);
+    await _show(tester, '/recipes/abc', _sizes['phone']!);
+    expect(find.text('Page not found'), findsOneWidget);
+    expect(find.text('Go to your recipes'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'an edit form that cannot load shows an error, never an empty form to save',
+    (tester) async {
+      addTearDown(tester.view.reset);
+      await _show(tester, '/recipes/999999/edit', _sizes['phone']!);
+      expect(find.text('Try again'), findsOneWidget);
+      expect(find.text('Save changes'), findsNothing);
+      expect(find.text('Recipe name'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'a swiped-away recipe is really deleted when the Undo bar times out',
+    (tester) async {
+      addTearDown(tester.view.reset);
+      await _show(tester, '/recipes', _sizes['phone']!);
+      final card = find.text('Banana bread');
+      expect(card, findsOneWidget);
+      await tester.drag(card, const Offset(-500, 0));
+      for (var i = 0; i < 40; i++) {
+        await tester.pump(
+          const Duration(milliseconds: 200),
+        ); // 8 s: past the 5 s Undo window
+      }
+      expect(
+        find.text('Undo'),
+        findsNothing,
+        reason: 'the bar closes by itself',
+      );
+      expect(
+        find.text('Banana bread'),
+        findsNothing,
+        reason: 'and the recipe stays deleted',
+      );
+    },
+  );
 }

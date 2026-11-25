@@ -9,6 +9,7 @@ import 'services/theme_settings.dart';
 import 'widgets/app_shell.dart';
 import 'screens/account_screen.dart';
 import 'screens/friends_screen.dart';
+import 'screens/not_found_screen.dart';
 import 'theme/app_theme.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
@@ -40,9 +41,17 @@ Future<void> main() async {
 
 final _rootKey = GlobalKey<NavigatorState>();
 
+/// Builds a page from a number in the link, or "Not found" for a link like /recipes/abc.
+Widget _withId(GoRouterState state, String name, Widget Function(int id) page) {
+  final id = int.tryParse(state.pathParameters[name] ?? '');
+  return id == null ? const NotFoundScreen() : page(id);
+}
+
 final _router = GoRouter(
   navigatorKey: _rootKey,
   initialLocation: '/recipes',
+  // Any address the app doesn't know.
+  errorBuilder: (_, _) => const NotFoundScreen(),
   refreshListenable: AuthService(),
   redirect: (context, state) {
     final isAuth = AuthService().isLoggedIn;
@@ -71,7 +80,7 @@ final _router = GoRouter(
       parentNavigatorKey: _rootKey,
       pageBuilder: (_, state) => _fullScreen(
         state,
-        RecipeFormScreen(editId: int.parse(state.pathParameters['id']!)),
+        _withId(state, 'id', (id) => RecipeFormScreen(editId: id)),
       ),
     ),
     GoRoute(
@@ -84,7 +93,7 @@ final _router = GoRouter(
       parentNavigatorKey: _rootKey,
       pageBuilder: (_, state) => _fullScreen(
         state,
-        GroupFormScreen(editId: int.parse(state.pathParameters['id']!)),
+        _withId(state, 'id', (id) => GroupFormScreen(editId: id)),
       ),
     ),
 
@@ -100,9 +109,8 @@ final _router = GoRouter(
               routes: [
                 GoRoute(
                   path: ':id',
-                  builder: (_, state) => RecipeDetailScreen(
-                    id: int.parse(state.pathParameters['id']!),
-                  ),
+                  builder: (_, state) =>
+                      _withId(state, 'id', (id) => RecipeDetailScreen(id: id)),
                 ),
               ],
             ),
@@ -116,15 +124,16 @@ final _router = GoRouter(
               routes: [
                 GoRoute(
                   path: ':id',
-                  builder: (_, state) => GroupDetailScreen(
-                    id: int.parse(state.pathParameters['id']!),
-                  ),
+                  builder: (_, state) =>
+                      _withId(state, 'id', (id) => GroupDetailScreen(id: id)),
                   routes: [
                     // A recipe opened from a collection stays in the Collections tab.
                     GoRoute(
                       path: 'recipes/:rid',
-                      builder: (_, state) => RecipeDetailScreen(
-                        id: int.parse(state.pathParameters['rid']!),
+                      builder: (_, state) => _withId(
+                        state,
+                        'rid',
+                        (id) => RecipeDetailScreen(id: id),
                       ),
                     ),
                   ],

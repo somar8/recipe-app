@@ -25,14 +25,24 @@ changes only their own recipes and groups; the database enforces this itself
 - The database enforces all of this (`supabase/schema.sql`), and `supabase/tests/tests.sql` checks it: strangers
   see nothing, friends see only what was shared and can never change it.
 
+## Security notes
+
+- Keep **Authentication → Sign In / Providers → Email → Confirm email** switched on. Friend requests are matched
+  on email addresses, and only a confirmed address can accept one.
+- Nobody can read the address a friend request was sent to. The search shows names and hints like `an***@gmail.com`,
+  matches only the part of an email before the `@`, and is limited to 60 searches a minute. Sending is limited to
+  30 requests a day.
+- Size limits protect the free database: 2,000 recipes and 300 collections per account, 200 ingredients per recipe,
+  and maximum text lengths.
+
 ## Project layout
 
 - `lib/services/` – `auth_service.dart` (Supabase Auth), `recipe_service.dart`, `group_service.dart`, `errors.dart` (clear error messages)
 - `lib/models/` – `Recipe`, `RecipeIngredient`, `GroupRecipes`, read from and written to the database
 - `lib/screens/` – the 8 screens
 - `supabase/schema.sql` – tables, access rules, the `save_recipe` function (saves a recipe and its ingredients in one step) and `ping`
-- `supabase/tests/` – 162 database checks on a throwaway local Postgres: `bash supabase/tests/run.sh` (needs Postgres installed; nothing touches Supabase)
-- `test/` – app tests: `flutter test` (109 tests). `screens_test.dart` opens every screen on the demo data at
+- `supabase/tests/` – 218 database checks on a throwaway local Postgres: `bash supabase/tests/run.sh` (needs Postgres installed; nothing touches Supabase)
+- `test/` – app tests: `flutter test` (113 tests). `screens_test.dart` opens every screen on the demo data at
   phone, tablet and laptop size, in dark mode and at 200% text, and checks layout, tap-target size, button labels
   and text contrast
 - `assets/fonts/` – Fraunces and Inter (SIL Open Font License), bundled so nothing is fetched from Google

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/data_changes.dart';
 import '../widgets/skeleton.dart';
 import 'package:go_router/go_router.dart';
 import '../models/group_recipes.dart';
@@ -32,7 +33,19 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   @override
   void initState() {
     super.initState();
+    // Changes made elsewhere (another tab, a shared item) refresh this list quietly.
+    dataChanges.addListener(_onDataChanged);
     _load();
+  }
+
+  void _onDataChanged() {
+    if (mounted) _load();
+  }
+
+  @override
+  void dispose() {
+    dataChanges.removeListener(_onDataChanged);
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -134,6 +147,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         ..hideCurrentSnackBar()
         ..showSnackBar(
           SnackBar(
+            persist:
+                false, // otherwise a bar with a button never closes by itself
             content: Text('Removed "${r.title}" from this collection'),
             action: SnackBarAction(
               label: 'Undo',
@@ -149,11 +164,13 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   Future<void> _add(List<int> ids) async {
     if (ids.isEmpty) return;
     try {
-      GroupRecipes? updated;
-      for (final id in ids) {
-        updated = await _groupService.addRecipe(widget.id, id);
-      }
-      if (mounted) setState(() => _group = updated);
+      final updated = await _groupService.addRecipes(widget.id, ids);
+      if (!mounted) return;
+      setState(() => _group = updated);
+      showMessage(
+        context,
+        ids.length == 1 ? 'Added 1 recipe' : 'Added ${ids.length} recipes',
+      );
     } catch (e) {
       if (mounted) showMessage(context, errorText(e));
     }

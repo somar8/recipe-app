@@ -98,7 +98,7 @@ begin
   insert into public.recipe_profiles (id, display_name, email)
   values (
     new.id,
-    coalesce(nullif(btrim(new.raw_user_meta_data ->> 'username'), ''), split_part(coalesce(new.email, ''), '@', 1)),
+    left(coalesce(nullif(btrim(new.raw_user_meta_data ->> 'username'), ''), split_part(coalesce(new.email, ''), '@', 1)), 60),
     lower(coalesce(new.email, ''))
   )
   on conflict (id) do update
@@ -116,7 +116,7 @@ create trigger sync_recipe_profile
 -- Accounts made before this existed get their profile now.
 insert into public.recipe_profiles (id, display_name, email)
 select u.id,
-       coalesce(nullif(btrim(u.raw_user_meta_data ->> 'username'), ''), split_part(coalesce(u.email, ''), '@', 1)),
+       left(coalesce(nullif(btrim(u.raw_user_meta_data ->> 'username'), ''), split_part(coalesce(u.email, ''), '@', 1)), 60),
        lower(coalesce(u.email, ''))
 from auth.users u
 on conflict (id) do nothing;
@@ -134,8 +134,10 @@ do $$ begin
 end $$;
 
 -- ---------- Friends ----------
--- A request is addressed to an email address, not to an account. The sender is never
--- told whether that address has an account: the app always says "Request sent", and
+-- Find people by name or email with search_people() (names plus a hidden email such as
+-- "an***@gmail.com", never full addresses), or send a request to a full email address.
+-- A request is addressed to an email address, not to an account. Sending by email never
+-- says whether that address has an account: the app always says "Request sent", and
 -- someone who signs up later with that address finds the request waiting.
 -- A request only exists while it waits; accepting turns it into a friendship and
 -- declining or cancelling deletes it.
@@ -148,6 +150,19 @@ create table if not exists public.friend_requests (
   unique (from_user, to_email)
 );
 create index if not exists friend_requests_to_email_idx on public.friend_requests (to_email);
+-- Set when the request was made by picking someone from the search (see list_sent_requests).
+alter table public.friend_requests add column if not exists to_user uuid references public.recipe_profiles (id) on delete cascade;
+
+-- How often someone searched or sent requests recently, to stop spam and scraping.
+-- Only the functions use it; nobody can read or write it directly.
+create table if not exists public.rate_events (
+  user_id uuid not null references auth.users (id) on delete cascade,
+  kind    text not null,
+  at      timestamptz not null default now()
+);
+create index if not exists rate_events_user_kind_at_idx on public.rate_events (user_id, kind, at);
+alter table public.rate_events enable row level security;
+revoke all on public.rate_events from anon, authenticated;
 
 -- One row per pair of friends, the smaller id first.
 create table if not exists public.friendships (
@@ -224,6 +239,16 @@ as $$
       )
 $$;
 
+-- Has this person sent a friend request to you? (Request addresses are hidden from
+-- everyone, so the profile rule asks through this helper.)
+create or replace function public.asked_me(other uuid)
+returns boolean language sql stable security definer set search_path = ''
+as $$
+  select exists (select 1 from public.friend_requests r where r.from_user = other and r.to_email = public.my_email())
+$$;
+revoke execute on function public.asked_me(uuid) from public, anon;
+grant execute on function public.asked_me(uuid) to authenticated;
+
 revoke execute on function public.is_friend(uuid), public.owns_recipe(bigint), public.owns_group(bigint),
   public.can_view_group(bigint), public.can_view_recipe(bigint), public.my_email() from public, anon;
 grant execute on function public.is_friend(uuid), public.owns_recipe(bigint), public.owns_group(bigint),
@@ -236,11 +261,19 @@ grant execute on function public.is_friend(uuid), public.owns_recipe(bigint), pu
 revoke all on public.recipes, public.recipe_ingredients, public.recipe_groups, public.recipe_group_items,
   public.recipe_profiles, public.friend_requests, public.friendships, public.recipe_shares, public.collection_shares
   from anon;
-grant select, insert, update, delete
-  on public.recipes, public.recipe_ingredients, public.recipe_groups, public.recipe_group_items to authenticated;
-grant select on public.recipe_profiles, public.friendships to authenticated;
-grant delete on public.friendships to authenticated;
-grant select, delete on public.friend_requests to authenticated;
+-- Supabase gives signed-in users every right on new tables by default; start from
+-- nothing and grant only what the app uses, so a future policy mistake can't open more.
+revoke all on public.recipes, public.recipe_ingredients, public.recipe_groups, public.recipe_group_items,
+  public.recipe_profiles, public.friend_requests, public.friendships, public.recipe_shares, public.collection_shares
+  from authenticated;
+grant select, insert, update, delete on public.recipes, public.recipe_ingredients to authenticated;
+grant select, insert, update, delete on public.recipe_groups to authenticated;
+grant select, insert, delete on public.recipe_group_items to authenticated;
+grant select on public.recipe_profiles to authenticated;
+grant select, delete on public.friendships to authenticated;
+-- Requests: never the address column. You see who sent you a request, and your own
+-- sent list comes from list_sent_requests(), which hides addresses you didn't type.
+grant select (id, from_user, to_user, created_at), delete on public.friend_requests to authenticated;
 grant select, insert, delete on public.recipe_shares, public.collection_shares to authenticated;
 
 alter table public.recipes            enable row level security;
@@ -260,7 +293,13 @@ drop policy if exists "add own recipes" on public.recipes;
 drop policy if exists "change own recipes" on public.recipes;
 drop policy if exists "delete own recipes" on public.recipes;
 create policy "read own and shared recipes" on public.recipes for select to authenticated
-  using (user_id = (select auth.uid()) or public.can_view_recipe(id));
+  using (
+    user_id = (select auth.uid())
+    or id in (select s.recipe_id from public.recipe_shares s where s.friend_id = (select auth.uid()))
+    or id in (select i.recipe_id from public.recipe_group_items i
+              join public.collection_shares s on s.group_id = i.group_id
+              where s.friend_id = (select auth.uid()))
+  );
 create policy "add own recipes" on public.recipes for insert to authenticated
   with check (user_id = (select auth.uid()));
 create policy "change own recipes" on public.recipes for update to authenticated
@@ -272,7 +311,7 @@ drop policy if exists "ingredients of own recipes" on public.recipe_ingredients;
 drop policy if exists "read ingredients of visible recipes" on public.recipe_ingredients;
 drop policy if exists "write ingredients of own recipes" on public.recipe_ingredients;
 create policy "read ingredients of visible recipes" on public.recipe_ingredients for select to authenticated
-  using (public.can_view_recipe(recipe_id));
+  using (recipe_id in (select r.id from public.recipes r)); -- the recipes rule decides
 create policy "write ingredients of own recipes" on public.recipe_ingredients for all to authenticated
   using (public.owns_recipe(recipe_id)) with check (public.owns_recipe(recipe_id));
 
@@ -310,7 +349,7 @@ create policy "read profiles of people you know" on public.recipe_profiles for s
   using (
     id = (select auth.uid())
     or public.is_friend(id)
-    or exists (select 1 from public.friend_requests r where r.from_user = recipe_profiles.id and r.to_email = public.my_email())
+    or public.asked_me(id)
   );
 
 -- Requests: the sender and the addressee can see and delete (cancel or decline).
@@ -354,10 +393,18 @@ create policy "stop or leave collection shares" on public.collection_shares for 
 
 -- ---------- Friend actions ----------
 
--- Sends a request to an email address. Always ends the same way for the caller (no
--- hint whether the address has an account), except for clear mistakes like yourself.
--- If that person already asked you, you simply become friends.
-create or replace function public.send_friend_request(email text)
+-- "anna@gmail.com" -> "an***@gmail.com" (only the first letter for very short names).
+create or replace function public.email_hint(email text)
+returns text language sql immutable set search_path = ''
+as $$
+  select case
+    when position('@' in email) <= 3 then left(email, 1) || '***' || substring(email from position('@' in email))
+    else left(email, 2) || '***' || substring(email from position('@' in email))
+  end
+$$;
+
+-- Counts an action and refuses it when someone does it too often (spam, scraping).
+create or replace function public.take_rate(kind text, max_count int, per interval)
 returns void
 language plpgsql
 security definer
@@ -365,19 +412,32 @@ set search_path = ''
 as $$
 declare
   me uuid := auth.uid();
-  target text := lower(btrim(email));
+begin
+  delete from public.rate_events e where e.user_id = me and e.kind = take_rate.kind and e.at < now() - per;
+  if (select count(*) from public.rate_events e where e.user_id = me and e.kind = take_rate.kind) >= max_count then
+    raise exception 'Slow down a little and try again later.' using errcode = '54000';
+  end if;
+  insert into public.rate_events (user_id, kind) values (me, take_rate.kind);
+end;
+$$;
+
+-- Shared by both ways of sending. target_user is set when you picked a person from the
+-- search, so your sent list can show their name without ever showing their email.
+create or replace function public.friend_request_core(target text, target_user uuid)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  me uuid := auth.uid();
   other uuid;
   reverse_id bigint;
 begin
-  if me is null then
-    raise exception 'Sign in first.' using errcode = '42501';
-  end if;
-  if target is null or target !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' then
-    raise exception 'That doesn''t look like an email address.' using errcode = '22023';
-  end if;
   if target = public.my_email() then
     raise exception 'That''s your own email address.' using errcode = '22023';
   end if;
+  perform public.take_rate('friend_request', 30, interval '1 day');
   if (select count(*) from public.friend_requests where from_user = me) >= 50 then
     raise exception 'You have 50 open requests. Wait for some answers first.' using errcode = '54000';
   end if;
@@ -403,12 +463,123 @@ begin
     return;
   end if;
 
-  insert into public.friend_requests (from_user, to_email) values (me, target)
-    on conflict (from_user, to_email) do nothing;
+  insert into public.friend_requests (from_user, to_email, to_user) values (me, target, target_user)
+    on conflict (from_user, to_email) do update
+      set to_user = coalesce(public.friend_requests.to_user, excluded.to_user);
 end;
 $$;
 
+-- Sends a request to an email address you typed. Always ends the same way for the
+-- caller (no hint whether the address has an account), except for clear mistakes.
+-- If that person already asked you, you simply become friends.
+create or replace function public.send_friend_request(email text)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  target text := lower(btrim(email));
+begin
+  if auth.uid() is null then
+    raise exception 'Sign in first.' using errcode = '42501';
+  end if;
+  if target is null or length(target) > 254 or target !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' then
+    raise exception 'That doesn''t look like an email address.' using errcode = '22023';
+  end if;
+  perform public.friend_request_core(target, null);
+end;
+$$;
+
+-- Finds people to add while you type (3 letters or more): matches the start of their
+-- name, of any word in their name, or of the part of their email before the @. Never
+-- the domain or a whole address, so it can't confirm that an email has an account.
+-- At most 5 people, never yourself, never a full email: only a hint like "an***@gmail.com".
+-- status: 'none', 'friend', 'sent' (you asked them) or 'received' (they asked you).
+create or replace function public.search_people(query text)
+returns table (id uuid, display_name text, email_hint text, status text)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  me uuid := auth.uid();
+  q text := lower(btrim(coalesce(query, '')));
+  pattern text;
+begin
+  if me is null then
+    raise exception 'Sign in first.' using errcode = '42501';
+  end if;
+  if length(q) < 3 or length(q) > 100 then
+    return;
+  end if;
+  perform public.take_rate('search', 60, interval '1 minute');
+  -- Typed % and _ are letters here, not wildcards.
+  pattern := replace(replace(replace(q, '\', '\\'), '%', '\%'), '_', '\_');
+  return query
+    select p.id,
+           p.display_name,
+           public.email_hint(p.email),
+           case
+             when exists (select 1 from public.friendships f
+                          where f.user_a = least(me, p.id) and f.user_b = greatest(me, p.id)) then 'friend'
+             when exists (select 1 from public.friend_requests r where r.from_user = me and r.to_email = p.email) then 'sent'
+             when exists (select 1 from public.friend_requests r where r.from_user = p.id and r.to_email = public.my_email()) then 'received'
+             else 'none'
+           end
+    from public.recipe_profiles p
+    where p.id <> me
+      and p.email <> ''
+      and (lower(p.display_name) like pattern || '%'
+           or lower(p.display_name) like '% ' || pattern || '%'
+           or (position('@' in q) = 0 and split_part(p.email, '@', 1) like pattern || '%'))
+    order by (lower(p.display_name) like pattern || '%') desc, p.display_name
+    limit 5;
+end;
+$$;
+
+-- Sends a request to someone picked from search_people (the app never sees their email).
+create or replace function public.send_friend_request_to(person uuid)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  target text;
+begin
+  if auth.uid() is null then
+    raise exception 'Sign in first.' using errcode = '42501';
+  end if;
+  select email into target from public.recipe_profiles where id = person;
+  if target is null or target = '' then
+    raise exception 'This person can''t be found.' using errcode = 'P0002';
+  end if;
+  perform public.friend_request_core(target, person);
+end;
+$$;
+
+-- Your sent requests that wait for an answer. An address you typed is shown as typed;
+-- someone you picked from the search shows their name and only a hint of their email.
+create or replace function public.list_sent_requests()
+returns table (id bigint, display_name text, email_label text)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select r.id,
+         p.display_name,
+         case when r.to_user is null then r.to_email else public.email_hint(r.to_email) end
+  from public.friend_requests r
+  left join public.recipe_profiles p on p.id = r.to_user
+  where r.from_user = auth.uid()
+  order by r.created_at desc
+$$;
+
 -- Accepts a request addressed to your email. Returns the new friend's id.
+-- Your email must be confirmed, so nobody can claim requests meant for an address they
+-- don't own.
 create or replace function public.accept_friend_request(request_id bigint)
 returns uuid
 language plpgsql
@@ -419,6 +590,9 @@ declare
   me uuid := auth.uid();
   sender uuid;
 begin
+  if not exists (select 1 from auth.users u where u.id = me and u.email_confirmed_at is not null) then
+    raise exception 'Confirm your email address first: open the link we sent you.' using errcode = '42501';
+  end if;
   select from_user into sender from public.friend_requests
   where id = request_id and to_email = public.my_email();
   if sender is null then
@@ -493,9 +667,14 @@ end;
 $$;
 
 revoke execute on function public.send_friend_request(text), public.accept_friend_request(bigint),
-  public.list_friends(), public.copy_recipe(bigint) from public, anon;
+  public.list_friends(), public.copy_recipe(bigint), public.search_people(text),
+  public.send_friend_request_to(uuid), public.list_sent_requests() from public, anon;
 grant execute on function public.send_friend_request(text), public.accept_friend_request(bigint),
-  public.list_friends(), public.copy_recipe(bigint) to authenticated;
+  public.list_friends(), public.copy_recipe(bigint), public.search_people(text),
+  public.send_friend_request_to(uuid), public.list_sent_requests() to authenticated;
+-- Internal building blocks: only the functions above may use them.
+revoke execute on function public.friend_request_core(text, uuid), public.take_rate(text, int, interval)
+  from public, anon, authenticated;
 revoke execute on function public.sync_recipe_profile(), public.unshare_on_unfriend() from public, anon, authenticated;
 
 -- ---------- Saving a recipe with its ingredients in one step ----------
@@ -550,6 +729,85 @@ $$;
 
 revoke execute on function public.save_recipe(jsonb) from public, anon;
 grant execute on function public.save_recipe(jsonb) to authenticated;
+
+-- ---------- Limits ----------
+-- Keeps one account from blocking others or filling the free database (500 MB).
+
+-- Ids are always made by the database. (Otherwise someone could insert rows with future
+-- ids, and everyone else's saves would fail with "duplicate key".)
+do $$
+declare
+  t text;
+begin
+  foreach t in array array['recipes', 'recipe_ingredients', 'recipe_groups', 'friend_requests'] loop
+    if exists (
+      select 1 from pg_attribute
+      where attrelid = ('public.' || t)::regclass and attname = 'id' and attidentity = 'd'
+    ) then
+      execute format('alter table public.%I alter column id set generated always', t);
+    end if;
+  end loop;
+end $$;
+
+-- Text lengths and number ranges.
+do $$
+declare
+  c record;
+begin
+  for c in
+    select * from (values
+      ('recipes', 'recipes_title_len', 'length(title) <= 200'),
+      ('recipes', 'recipes_description_len', 'length(description) <= 2000'),
+      ('recipes', 'recipes_instructions_len', 'length(instructions) <= 20000'),
+      ('recipes', 'recipes_times_max', 'prep_time_minutes <= 10080 and cook_time_minutes <= 10080'),
+      ('recipes', 'recipes_servings_max', 'servings <= 1000'),
+      ('recipe_ingredients', 'recipe_ingredients_len',
+        'length(name) <= 200 and length(quantity) <= 50 and length(unit) <= 50'),
+      ('recipe_groups', 'recipe_groups_len', 'length(name) <= 100 and length(description) <= 2000')
+    ) as v(tbl, name, expr)
+  loop
+    if not exists (select 1 from pg_constraint where conname = c.name) then
+      execute format('alter table public.%I add constraint %I check (%s)', c.tbl, c.name, c.expr);
+    end if;
+  end loop;
+end $$;
+
+-- How much one account may store: 2,000 recipes, 300 collections, 200 ingredients per recipe.
+create or replace function public.enforce_account_limits()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  -- Each table has different columns, so each check lives in its own branch.
+  if tg_table_name = 'recipes' then
+    if (select count(*) from public.recipes where user_id = new.user_id) >= 2000 then
+      raise exception 'You''ve reached 2,000 recipes, the most one account can keep.' using errcode = '54000';
+    end if;
+  elsif tg_table_name = 'recipe_groups' then
+    if (select count(*) from public.recipe_groups where user_id = new.user_id) >= 300 then
+      raise exception 'You''ve reached 300 collections, the most one account can keep.' using errcode = '54000';
+    end if;
+  elsif tg_table_name = 'recipe_ingredients' then
+    if (select count(*) from public.recipe_ingredients where recipe_id = new.recipe_id) >= 200 then
+      raise exception 'A recipe can have at most 200 ingredients.' using errcode = '54000';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.enforce_account_limits() from public, anon, authenticated;
+
+drop trigger if exists enforce_account_limits on public.recipes;
+create trigger enforce_account_limits before insert on public.recipes
+  for each row execute function public.enforce_account_limits();
+drop trigger if exists enforce_account_limits on public.recipe_groups;
+create trigger enforce_account_limits before insert on public.recipe_groups
+  for each row execute function public.enforce_account_limits();
+drop trigger if exists enforce_account_limits on public.recipe_ingredients;
+create trigger enforce_account_limits before insert on public.recipe_ingredients
+  for each row execute function public.enforce_account_limits();
 
 -- ---------- Keep-alive ----------
 -- A free Supabase project pauses after about a week without activity.

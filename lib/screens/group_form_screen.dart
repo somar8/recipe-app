@@ -25,6 +25,10 @@ class _GroupFormScreenState extends State<GroupFormScreen> {
   final _description = TextEditingController();
 
   bool _loading = false;
+
+  /// Editing, but the item could not be loaded: show an error, never an empty form
+  /// (saving that would overwrite the real item with blanks).
+  bool _loadFailed = false;
   bool _saving = false;
   String? _error;
   String _savedSnapshot = '\n';
@@ -49,6 +53,7 @@ class _GroupFormScreenState extends State<GroupFormScreen> {
     setState(() => _loading = true);
     try {
       final g = await _groupService.getById(widget.editId!);
+      if (!mounted) return; // closed while loading
       _name.text = g.name;
       _description.text = g.description ?? '';
       _savedSnapshot = _snapshot();
@@ -58,6 +63,7 @@ class _GroupFormScreenState extends State<GroupFormScreen> {
         setState(() {
           _error = errorText(e);
           _loading = false;
+          _loadFailed = true;
         });
       }
     }
@@ -126,7 +132,7 @@ class _GroupFormScreenState extends State<GroupFormScreen> {
   Widget build(BuildContext context) {
     final c = Theme.of(context).colorScheme;
     return PopScope(
-      canPop: _saving || !_hasChanges,
+      canPop: _saving || _loading || _loadFailed || !_hasChanges,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) _confirmLeave();
       },
@@ -141,7 +147,15 @@ class _GroupFormScreenState extends State<GroupFormScreen> {
           ),
           title: Text(_isEdit ? 'Edit collection' : 'New collection'),
         ),
-        body: _loading
+        body: _loadFailed
+            ? ErrorState(
+                message: _error ?? 'Could not load this.',
+                onRetry: () {
+                  setState(() => _loadFailed = false);
+                  _load();
+                },
+              )
+            : _loading
             ? const Center(child: CircularProgressIndicator())
             : Form(
                 key: _formKey,
@@ -206,7 +220,7 @@ class _GroupFormScreenState extends State<GroupFormScreen> {
                   ],
                 ),
               ),
-        bottomNavigationBar: _loading
+        bottomNavigationBar: _loading || _loadFailed
             ? null
             : SafeArea(
                 child: Padding(

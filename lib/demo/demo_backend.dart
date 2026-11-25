@@ -19,7 +19,37 @@ class DemoBackend extends http.BaseClient {
     _me: {'display_name': 'Samer', 'email': 'demo@example.com'},
     _anna: {'display_name': 'Anna', 'email': 'anna@example.com'},
     _bram: {'display_name': 'Bram', 'email': 'bram@example.com'},
+    // People to find with the search in Account -> Friends.
+    '00000000-0000-4000-8000-000000000004': {
+      'display_name': 'Anneke Jansen',
+      'email': 'anneke.jansen@example.com',
+    },
+    '00000000-0000-4000-8000-000000000005': {
+      'display_name': 'Annabel Smit',
+      'email': 'bel@example.com',
+    },
+    '00000000-0000-4000-8000-000000000006': {
+      'display_name': 'Jan de Boer',
+      'email': 'jan.deboer@example.com',
+    },
+    '00000000-0000-4000-8000-000000000007': {
+      'display_name': 'Joost Visser',
+      'email': 'jv@example.com',
+    },
   };
+
+  /// Like the database: "an***@gmail.com", or "j***@…" for very short names.
+  static String _hint(String email) {
+    final at = email.indexOf('@');
+    return '${email.substring(0, at <= 2 ? 1 : 2)}***${email.substring(at)}';
+  }
+
+  String _statusOf(String id) {
+    if (_friends.contains(id)) return 'friend';
+    if (_sent.containsValue(_people[id]!['email'])) return 'sent';
+    if (_incoming.containsValue(id)) return 'received';
+    return 'none';
+  }
 
   final _recipes = <int, Map<String, dynamic>>{};
   final _groups = <int, Map<String, dynamic>>{};
@@ -27,6 +57,8 @@ class DemoBackend extends http.BaseClient {
   final _friends = <String>{_anna};
   final _incoming = <int, String>{1: _bram}; // request id -> sender
   final _sent = <int, String>{}; // request id -> email
+  final _sentTo =
+      <int, String>{}; // request id -> person, when picked from the search
   final _recipeShares = <(int, String)>{}; // (recipe id, friend id)
   final _collectionShares = <(int, String)>{}; // (group id, friend id)
   var _nextId = 100;
@@ -448,6 +480,72 @@ class DemoBackend extends http.BaseClient {
       _sent[_nextRequest++] = email;
       return (200, null);
     }
+    if (path.endsWith('/rpc/search_people')) {
+      final q = ((body as Map)['query'] as String).trim().toLowerCase();
+      if (q.length < 3) return (200, []);
+      final found = _people.entries
+          .where((e) {
+            if (e.key == _me) return false;
+            final name = e.value['display_name']!.toLowerCase();
+            return name.startsWith(q) ||
+                name.contains(' $q') ||
+                e.value['email']!.startsWith(q);
+          })
+          .take(5);
+      return (
+        200,
+        [
+          for (final e in found)
+            {
+              'id': e.key,
+              'display_name': e.value['display_name'],
+              'email_hint': _hint(e.value['email']!),
+              'status': _statusOf(e.key),
+            },
+        ],
+      );
+    }
+    if (path.endsWith('/rpc/send_friend_request_to')) {
+      final person = (body as Map)['person'] as String;
+      final email = _people[person]?['email'];
+      if (email == null) {
+        return (
+          400,
+          {'code': 'P0002', 'message': 'This person can\'t be found.'},
+        );
+      }
+      final before = _nextRequest;
+      final result = _handle(
+        'POST',
+        uri.replace(
+          path: uri.path.replaceFirst(
+            'send_friend_request_to',
+            'send_friend_request',
+          ),
+        ),
+        {'email': email},
+      );
+      if (_nextRequest > before) {
+        _sentTo[before] = person; // remember who, like the database
+      }
+      return result;
+    }
+    if (path.endsWith('/rpc/list_sent_requests')) {
+      // Like the database: a typed address as typed, a picked person by name + hint.
+      return (
+        200,
+        [
+          for (final e in _sent.entries)
+            {
+              'id': e.key,
+              'display_name': _sentTo[e.key] == null
+                  ? null
+                  : _people[_sentTo[e.key]]!['display_name'],
+              'email_label': _sentTo[e.key] == null ? e.value : _hint(e.value),
+            },
+        ],
+      );
+    }
     if (path.endsWith('/rpc/accept_friend_request')) {
       final id = ((body as Map)['request_id'] as num).toInt();
       final from = _incoming.remove(id);
@@ -537,9 +635,11 @@ class DemoBackend extends http.BaseClient {
         final id = _eqInt(uri, 'id');
         _incoming.remove(id);
         _sent.remove(id);
+        _sentTo.remove(id);
         return (204, null);
       }
-      if (_eqStr(uri, 'to_email') != null) {
+      // Requests to you (the app asks for rows not sent by you; addresses stay hidden).
+      if (uri.queryParameters['from_user']?.startsWith('neq.') ?? false) {
         return (
           200,
           [
@@ -552,12 +652,7 @@ class DemoBackend extends http.BaseClient {
           ],
         );
       }
-      return (
-        200,
-        [
-          for (final e in _sent.entries) {'id': e.key, 'to_email': e.value},
-        ],
-      );
+      return (200, []);
     }
     if (path.endsWith('/rest/v1/friendships') && method == 'DELETE') {
       final or = uri.queryParameters['or'] ?? '';

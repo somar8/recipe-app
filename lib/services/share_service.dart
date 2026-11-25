@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'data_changes.dart';
 import 'errors.dart';
 
 /// What you share with which friends. Only the owner can share; friends only read.
@@ -45,11 +46,14 @@ class ShareService {
             .eq(table.$2, id)
             .inFilter('friend_id', remove.toList());
       }
+      markDataChanged();
     } catch (e) {
       throw Exception(
         friendlyError(
           e,
           fallback: 'Could not update sharing. Please try again.',
+          forbidden:
+              'You can only share your own recipes and collections, and only with friends.',
         ),
       );
     }
@@ -59,6 +63,7 @@ class ShareService {
   Future<void> _leave((String, String) table, int id) async {
     try {
       await _db.from(table.$1).delete().eq(table.$2, id).eq('friend_id', _me);
+      markDataChanged();
     } catch (e) {
       throw Exception(
         friendlyError(e, fallback: 'Could not remove it. Please try again.'),

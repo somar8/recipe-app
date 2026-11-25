@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/data_changes.dart';
 import '../widgets/skeleton.dart';
 import 'package:go_router/go_router.dart';
 import '../models/recipe.dart';
@@ -42,11 +43,18 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
   @override
   void initState() {
     super.initState();
+    // Changes made elsewhere (another tab, a shared item) refresh this list quietly.
+    dataChanges.addListener(_onDataChanged);
     _load();
+  }
+
+  void _onDataChanged() {
+    if (mounted) _load(quiet: true);
   }
 
   @override
   void dispose() {
+    dataChanges.removeListener(_onDataChanged);
     _searchController.dispose();
     super.dispose();
   }
@@ -127,6 +135,8 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
     messenger
         .showSnackBar(
           SnackBar(
+            persist:
+                false, // otherwise a bar with a button never closes by itself
             content: Text('Deleted "${r.title}"'),
             action: SnackBarAction(label: 'Undo', onPressed: () {}),
             duration: const Duration(seconds: 5),

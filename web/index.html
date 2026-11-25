@@ -4,31 +4,33 @@
   <!-- Replaced by the `--base-href` argument of `flutter build`; "/" by default. -->
   <base href="$FLUTTER_BASE_HREF">
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="Your recipes and collections, on any device.">
-  <meta name="theme-color" content="#2E7D32">
+  <meta name="theme-color" content="#FFFBF5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1A1917" media="(prefers-color-scheme: dark)">
 
   <!-- Installing on iPhone: Safari > Share > Add to Home Screen -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Recipes">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 
   <link rel="icon" type="image/png" href="favicon.png"/>
   <title>Recipe App</title>
   <link rel="manifest" href="manifest.json">
 
   <style>
-    body { margin: 0; background: #ffffff; }
+    body { margin: 0; background: #FFFBF5; }
     /* Shown while Flutter loads (about 2-3 MB on the first visit). */
     #loading { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center;
-               justify-content: center; gap: 16px; font-family: system-ui, sans-serif; color: #2E7D32; }
+               justify-content: center; gap: 16px; font-family: system-ui, sans-serif; color: #993C1D; }
     #loading img { border-radius: 20px; }
-    #loading .spinner { width: 28px; height: 28px; border: 3px solid #C8E6C9; border-top-color: #2E7D32;
+    #loading .spinner { width: 28px; height: 28px; border: 3px solid #FAECE7; border-top-color: #993C1D;
                         border-radius: 50%; animation: spin 0.9s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    @media (prefers-color-scheme: dark) { body { background: #121212; } #loading { color: #A5D6A7; } }
+    @media (prefers-color-scheme: dark) { body { background: #1A1917; } #loading { color: #F0997B; }
+      #loading .spinner { border-color: #712B13; border-top-color: #F0997B; } }
   </style>
 </head>
 <body>

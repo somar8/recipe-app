@@ -61,8 +61,16 @@ class _AppShellState extends State<AppShell> {
     if (d.label != 'Account') return icon;
     return ValueListenableBuilder<int>(
       valueListenable: FriendService().waitingCount,
-      builder: (_, count, _) =>
-          Badge(isLabelVisible: count > 0, label: Text('$count'), child: icon),
+      builder: (_, count, _) => Semantics(
+        label: count == 0
+            ? null
+            : '$count friend ${count == 1 ? 'request' : 'requests'} waiting',
+        child: Badge(
+          isLabelVisible: count > 0,
+          label: Text('$count'),
+          child: icon,
+        ),
+      ),
     );
   }
 
