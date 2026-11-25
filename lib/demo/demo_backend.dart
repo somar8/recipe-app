@@ -1,5 +1,8 @@
 // Demo mode only: a pretend Supabase that keeps everything in memory, so the app can be
 // tried and screenshotted without a real project. Never used by the real app (lib/main.dart).
+//
+// You are "Samer". Your friend Anna shared one recipe and one collection with you, and
+// Bram has sent you a friend request. The visibility rules mirror supabase/schema.sql.
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
@@ -8,13 +11,27 @@ class DemoBackend extends http.BaseClient {
     _seed();
   }
 
+  static const _me = '00000000-0000-4000-8000-000000000001';
+  static const _anna = '00000000-0000-4000-8000-000000000002';
+  static const _bram = '00000000-0000-4000-8000-000000000003';
+
+  final _people = <String, Map<String, String>>{
+    _me: {'display_name': 'Samer', 'email': 'demo@example.com'},
+    _anna: {'display_name': 'Anna', 'email': 'anna@example.com'},
+    _bram: {'display_name': 'Bram', 'email': 'bram@example.com'},
+  };
+
   final _recipes = <int, Map<String, dynamic>>{};
   final _groups = <int, Map<String, dynamic>>{};
   final _items = <(int, int)>{}; // (group id, recipe id)
+  final _friends = <String>{_anna};
+  final _incoming = <int, String>{1: _bram}; // request id -> sender
+  final _sent = <int, String>{}; // request id -> email
+  final _recipeShares = <(int, String)>{}; // (recipe id, friend id)
+  final _collectionShares = <(int, String)>{}; // (group id, friend id)
   var _nextId = 100;
+  var _nextRequest = 2;
   Map<String, dynamic> _metadata = {'username': 'Samer'};
-
-  static const _userId = '00000000-0000-4000-8000-000000000001';
 
   void _addRecipe(
     String title,
@@ -23,11 +40,13 @@ class DemoBackend extends http.BaseClient {
     int? cook,
     int? servings,
     List<List<String?>> ingredients,
-    String? steps,
-  ) {
+    String? steps, {
+    String owner = _me,
+  }) {
     final id = _nextId++;
     _recipes[id] = {
       'id': id,
+      'user_id': owner,
       'title': title,
       'description': description,
       'instructions': steps,
@@ -47,6 +66,17 @@ class DemoBackend extends http.BaseClient {
     };
   }
 
+  int _addGroup(String name, String description, {String owner = _me}) {
+    final id = _nextId++;
+    _groups[id] = {
+      'id': id,
+      'user_id': owner,
+      'name': name,
+      'description': description,
+    };
+    return id;
+  }
+
   void _seed() {
     _addRecipe(
       'Fluffy pancakes',
@@ -62,7 +92,7 @@ class DemoBackend extends http.BaseClient {
         ['Butter', '30', 'g'],
       ],
       '1. Whisk the flour, buttermilk, eggs and sugar until smooth.\n2. Rest the batter for 10 minutes.\n3. Melt a little butter in a pan over medium heat.\n4. Pour small circles of batter and cook until bubbles appear, then flip.\n5. Serve warm with syrup or fruit.',
-    );
+    ); // 100
     _addRecipe(
       'Roasted tomato soup',
       'Sweet, smoky and ready in under an hour',
@@ -77,7 +107,7 @@ class DemoBackend extends http.BaseClient {
         ['Basil', '1', 'bunch'],
       ],
       'Roast the tomatoes, onion and garlic at 200 °C for 30 minutes.\nBlend with the stock until smooth.\nSeason and finish with torn basil.',
-    );
+    ); // 101
     _addRecipe(
       'Greek salad',
       'Quick lunch',
@@ -91,7 +121,7 @@ class DemoBackend extends http.BaseClient {
         ['Olives', '1', 'handful'],
       ],
       'Chop the vegetables.\nCrumble over the feta and add the olives.\nDress with olive oil and oregano.',
-    );
+    ); // 102
     _addRecipe(
       'Spaghetti carbonara',
       'Creamy without cream',
@@ -105,7 +135,7 @@ class DemoBackend extends http.BaseClient {
         ['Pecorino', '50', 'g'],
       ],
       'Cook the pasta.\nCrisp the guanciale.\nMix yolks and cheese, then toss everything off the heat.',
-    );
+    ); // 103
     _addRecipe(
       'Kipsoep',
       'Dutch chicken soup, like oma made',
@@ -119,7 +149,7 @@ class DemoBackend extends http.BaseClient {
         ['Vermicelli', '50', 'g'],
       ],
       'Simmer the chicken with the vegetables for 90 minutes.\nStrain, pull the meat and return it to the broth.\nAdd vermicelli for the last 5 minutes.',
-    );
+    ); // 104
     _addRecipe(
       'Banana bread',
       null,
@@ -133,29 +163,96 @@ class DemoBackend extends http.BaseClient {
         ['Eggs', '2', null],
       ],
       'Mash the bananas.\nMix in the rest.\nBake at 175 °C for an hour.',
-    );
-    final breakfast = _nextId++;
-    _groups[breakfast] = {
-      'id': breakfast,
-      'name': 'Breakfast',
-      'description': 'Slow weekend mornings',
-    };
-    final weeknight = _nextId++;
-    _groups[weeknight] = {
-      'id': weeknight,
-      'name': 'Weeknight dinners',
-      'description': 'On the table in 30 minutes',
-    };
+    ); // 105
+    final breakfast = _addGroup('Breakfast', 'Slow weekend mornings'); // 106
+    final weeknight = _addGroup(
+      'Weeknight dinners',
+      'On the table in 30 minutes',
+    ); // 107
     _items.addAll({
       (breakfast, 100),
       (breakfast, 105),
       (weeknight, 102),
       (weeknight, 103),
     });
+
+    // Anna's kitchen.
+    _addRecipe(
+      'Shakshuka',
+      'Eggs in spicy tomato sauce',
+      10,
+      20,
+      2,
+      [
+        ['Eggs', '4', null],
+        ['Chopped tomatoes', '1', 'tin'],
+        ['Red pepper', '1', null],
+        ['Cumin', '1', 'tsp'],
+      ],
+      'Soften the pepper.\nAdd tomatoes and cumin, simmer 10 minutes.\nCrack in the eggs, cover until set.',
+      owner: _anna,
+    ); // 108
+    _addRecipe(
+      'Lemon drizzle cake',
+      'Anna\'s birthday favourite',
+      20,
+      45,
+      10,
+      [
+        ['Butter', '225', 'g'],
+        ['Sugar', '225', 'g'],
+        ['Eggs', '4', null],
+        ['Lemons', '2', null],
+      ],
+      'Cream butter and sugar.\nBeat in eggs, fold in flour and zest.\nBake 45 minutes, then drizzle with lemon syrup.',
+      owner: _anna,
+    ); // 109
+    final annasBaking = _addGroup(
+      'Anna\'s baking',
+      'Weekend bakes',
+      owner: _anna,
+    ); // 110
+    _items.add((annasBaking, 109));
+    _addRecipe(
+      'Secret curry',
+      'Not shared',
+      15,
+      30,
+      4,
+      [
+        ['Curry paste', '2', 'tbsp'],
+      ],
+      'Secret.',
+      owner: _anna,
+    ); // 111
+    _recipeShares.add((108, _me));
+    _collectionShares.add((annasBaking, _me));
   }
 
+  // ---- Visibility, as in the database's access rules ----
+  bool _canSeeGroup(int gid) =>
+      _groups[gid]?['user_id'] == _me || _collectionShares.contains((gid, _me));
+
+  bool _canSeeRecipe(int rid) =>
+      _recipes[rid]?['user_id'] == _me ||
+      _recipeShares.contains((rid, _me)) ||
+      _items.any((x) => x.$2 == rid && _collectionShares.contains((x.$1, _me)));
+
+  Map<String, dynamic> _withOwner(Map<String, dynamic> row) => {
+    ...row,
+    'owner': {'display_name': _people[row['user_id']]?['display_name']},
+  };
+
+  Map<String, dynamic> _groupJson(Map<String, dynamic> g) => _withOwner({
+    ...g,
+    'recipes': [
+      for (final (gid, rid) in _items)
+        if (gid == g['id'] && _recipes.containsKey(rid)) _recipes[rid],
+    ],
+  });
+
   Map<String, dynamic> get _user => {
-    'id': _userId,
+    'id': _me,
     'aud': 'authenticated',
     'role': 'authenticated',
     'email': 'demo@example.com',
@@ -172,7 +269,7 @@ class DemoBackend extends http.BaseClient {
     final exp =
         DateTime.now().add(const Duration(days: 365)).millisecondsSinceEpoch ~/
         1000;
-    return '${part({'alg': 'HS256', 'typ': 'JWT'})}.${part({'sub': _userId, 'exp': exp, 'role': 'authenticated', 'aud': 'authenticated'})}.demo';
+    return '${part({'alg': 'HS256', 'typ': 'JWT'})}.${part({'sub': _me, 'exp': exp, 'role': 'authenticated', 'aud': 'authenticated', 'email': 'demo@example.com'})}.demo';
   }
 
   Map<String, dynamic> get _session => {
@@ -186,20 +283,36 @@ class DemoBackend extends http.BaseClient {
     'user': _user,
   };
 
-  Map<String, dynamic> _groupJson(Map<String, dynamic> g) => {
-    ...g,
-    'user_id': _userId,
-    'recipes': [
-      for (final (gid, rid) in _items)
-        if (gid == g['id'] && _recipes.containsKey(rid)) _recipes[rid],
-    ],
-  };
+  int? _eqInt(Uri uri, String key) => int.tryParse(_eqStr(uri, key) ?? '');
 
-  int? _eq(Uri uri, String key) {
+  String? _eqStr(Uri uri, String key) {
     final v = uri.queryParameters[key];
-    return v != null && v.startsWith('eq.')
-        ? int.tryParse(v.substring(3))
-        : null;
+    return v != null && v.startsWith('eq.') ? v.substring(3) : null;
+  }
+
+  /// `in.("a","b")` or `in.(a,b)` -> {a, b}
+  Set<String> _inList(Uri uri, String key) {
+    final v = uri.queryParameters[key];
+    if (v == null || !v.startsWith('in.(')) return {};
+    return v
+        .substring(4, v.length - 1)
+        .split(',')
+        .map((s) => s.replaceAll('"', '').trim())
+        .toSet();
+  }
+
+  void _unfriend(String other) {
+    _friends.remove(other);
+    _recipeShares.removeWhere(
+      (s) =>
+          (s.$2 == other && _recipes[s.$1]?['user_id'] == _me) ||
+          (s.$2 == _me && _recipes[s.$1]?['user_id'] == other),
+    );
+    _collectionShares.removeWhere(
+      (s) =>
+          (s.$2 == other && _groups[s.$1]?['user_id'] == _me) ||
+          (s.$2 == _me && _groups[s.$1]?['user_id'] == other),
+    );
   }
 
   @override
@@ -237,18 +350,25 @@ class DemoBackend extends http.BaseClient {
           ..._metadata,
           ...(body['data'] as Map).cast<String, dynamic>(),
         };
+        final name = _metadata['username'];
+        if (name is String) _people[_me]!['display_name'] = name;
       }
       return (200, _user);
     }
     if (path.endsWith('/auth/v1/logout')) return (204, null);
-    // ---- Database ----
+
+    // ---- Functions ----
     if (path.endsWith('/rpc/ping')) return (200, 'ok');
     if (path.endsWith('/rpc/save_recipe')) {
       final r = ((body as Map)['recipe'] as Map).cast<String, dynamic>();
       final id = (r['id'] as num?)?.toInt() ?? _nextId++;
+      if (_recipes.containsKey(id) && _recipes[id]!['user_id'] != _me) {
+        return (400, {'code': 'P0002', 'message': 'Recipe not found.'});
+      }
       final ingredients = (r['ingredients'] as List? ?? const []).cast<Map>();
       _recipes[id] = {
         'id': id,
+        'user_id': _me,
         'title': r['title'],
         'description': r['description'],
         'instructions': r['instructions'],
@@ -266,63 +386,239 @@ class DemoBackend extends http.BaseClient {
       };
       return (200, id);
     }
+    if (path.endsWith('/rpc/copy_recipe')) {
+      final source = ((body as Map)['source_id'] as num).toInt();
+      if (!_canSeeRecipe(source)) {
+        return (400, {'code': 'P0002', 'message': 'Recipe not found.'});
+      }
+      final id = _nextId++;
+      final src = _recipes[source]!;
+      _recipes[id] = {
+        ...src,
+        'id': id,
+        'user_id': _me,
+        'recipe_ingredients': [
+          for (final i in (src['recipe_ingredients'] as List).cast<Map>())
+            {
+              ...i.cast<String, dynamic>(),
+              'id': id * 100 + (i['position'] as int),
+            },
+        ],
+      };
+      return (200, id);
+    }
+    if (path.endsWith('/rpc/list_friends')) {
+      return (
+        200,
+        [
+          for (final f in _friends)
+            {'id': f, ..._people[f]!, 'since': '2026-11-01T10:00:00Z'},
+        ],
+      );
+    }
+    if (path.endsWith('/rpc/send_friend_request')) {
+      final email = ((body as Map)['email'] as String).trim().toLowerCase();
+      if (!RegExp(r'^\S+@\S+\.\S+$').hasMatch(email)) {
+        return (
+          400,
+          {
+            'code': '22023',
+            'message': 'That doesn\'t look like an email address.',
+          },
+        );
+      }
+      if (email == 'demo@example.com') {
+        return (
+          400,
+          {'code': '22023', 'message': 'That\'s your own email address.'},
+        );
+      }
+      final sender = _incoming.entries
+          .where((e) => _people[e.value]!['email'] == email)
+          .firstOrNull;
+      if (sender != null) {
+        _incoming.remove(sender.key);
+        _friends.add(sender.value);
+        return (200, null);
+      }
+      if (_friends.any((f) => _people[f]!['email'] == email) ||
+          _sent.containsValue(email)) {
+        return (200, null);
+      }
+      _sent[_nextRequest++] = email;
+      return (200, null);
+    }
+    if (path.endsWith('/rpc/accept_friend_request')) {
+      final id = ((body as Map)['request_id'] as num).toInt();
+      final from = _incoming.remove(id);
+      if (from == null) {
+        return (
+          400,
+          {'code': 'P0002', 'message': 'This request no longer exists.'},
+        );
+      }
+      _friends.add(from);
+      return (200, from);
+    }
+
+    // ---- Tables ----
     if (path.endsWith('/rest/v1/recipes')) {
-      final id = _eq(uri, 'id');
+      final id = _eqInt(uri, 'id');
       if (method == 'DELETE') {
-        _recipes.remove(id);
-        _items.removeWhere((x) => x.$2 == id);
+        if (_recipes[id]?['user_id'] == _me) {
+          _recipes.remove(id);
+          _items.removeWhere((x) => x.$2 == id);
+          _recipeShares.removeWhere((s) => s.$1 == id);
+        }
         return (204, null);
       }
       return (
         200,
         [
           for (final r in _recipes.values)
-            if (id == null || r['id'] == id) r,
+            if ((id == null || r['id'] == id) && _canSeeRecipe(r['id'] as int))
+              _withOwner(r),
         ],
       );
     }
     if (path.endsWith('/rest/v1/recipe_groups')) {
-      final id = _eq(uri, 'id');
+      final id = _eqInt(uri, 'id');
       switch (method) {
         case 'POST':
-          final newId = _nextId++;
-          _groups[newId] = {
-            'id': newId,
-            ...(body as Map).cast<String, dynamic>(),
-          };
+          final newId = _addGroup(
+            (body as Map)['name'] as String,
+            body['description'] as String? ?? '',
+          );
           return (201, [_groupJson(_groups[newId]!)]);
         case 'PATCH':
+          if (_groups[id]?['user_id'] != _me) return (200, []);
           _groups[id!] = {
             ..._groups[id]!,
             ...(body as Map).cast<String, dynamic>(),
           };
           return (200, [_groupJson(_groups[id]!)]);
         case 'DELETE':
-          _groups.remove(id);
-          _items.removeWhere((x) => x.$1 == id);
+          if (_groups[id]?['user_id'] == _me) {
+            _groups.remove(id);
+            _items.removeWhere((x) => x.$1 == id);
+            _collectionShares.removeWhere((s) => s.$1 == id);
+          }
           return (204, null);
       }
       return (
         200,
         [
           for (final g in _groups.values)
-            if (id == null || g['id'] == id) _groupJson(g),
+            if ((id == null || g['id'] == id) && _canSeeGroup(g['id'] as int))
+              _groupJson(g),
         ],
       );
     }
     if (path.endsWith('/rest/v1/recipe_group_items')) {
       if (method == 'DELETE') {
-        _items.remove((_eq(uri, 'group_id'), _eq(uri, 'recipe_id')));
+        final gid = _eqInt(uri, 'group_id');
+        if (_groups[gid]?['user_id'] == _me) {
+          _items.remove((gid, _eqInt(uri, 'recipe_id')));
+        }
         return (204, null);
       }
-      final rows = body is List ? body : [body];
-      for (final row in rows.cast<Map>()) {
-        _items.add((
-          (row['group_id'] as num).toInt(),
-          (row['recipe_id'] as num).toInt(),
-        ));
+      for (final row in (body is List ? body : [body]).cast<Map>()) {
+        final gid = (row['group_id'] as num).toInt(),
+            rid = (row['recipe_id'] as num).toInt();
+        if (_groups[gid]?['user_id'] == _me &&
+            _recipes[rid]?['user_id'] == _me) {
+          _items.add((gid, rid));
+        }
       }
       return (201, null);
+    }
+    if (path.endsWith('/rest/v1/friend_requests')) {
+      if (method == 'DELETE') {
+        final id = _eqInt(uri, 'id');
+        _incoming.remove(id);
+        _sent.remove(id);
+        return (204, null);
+      }
+      if (_eqStr(uri, 'to_email') != null) {
+        return (
+          200,
+          [
+            for (final e in _incoming.entries)
+              {
+                'id': e.key,
+                'created_at': '2026-11-20T09:00:00Z',
+                'sender': {'id': e.value, ..._people[e.value]!},
+              },
+          ],
+        );
+      }
+      return (
+        200,
+        [
+          for (final e in _sent.entries) {'id': e.key, 'to_email': e.value},
+        ],
+      );
+    }
+    if (path.endsWith('/rest/v1/friendships') && method == 'DELETE') {
+      final or = uri.queryParameters['or'] ?? '';
+      for (final f in [..._friends]) {
+        if (or.contains(f)) _unfriend(f);
+      }
+      return (204, null);
+    }
+    for (final (table, key, shares, isMine) in [
+      (
+        'recipe_shares',
+        'recipe_id',
+        _recipeShares,
+        (int id) => _recipes[id]?['user_id'] == _me,
+      ),
+      (
+        'collection_shares',
+        'group_id',
+        _collectionShares,
+        (int id) => _groups[id]?['user_id'] == _me,
+      ),
+    ]) {
+      if (!path.endsWith('/rest/v1/$table')) continue;
+      final id = _eqInt(uri, key);
+      switch (method) {
+        case 'POST':
+          for (final row in (body is List ? body : [body]).cast<Map>()) {
+            final target = (row[key] as num).toInt(),
+                friend = row['friend_id'] as String;
+            if (!isMine(target) || !_friends.contains(friend)) {
+              return (
+                403,
+                {
+                  'code': '42501',
+                  'message': 'new row violates row-level security policy',
+                },
+              );
+            }
+            shares.add((target, friend));
+          }
+          return (201, null);
+        case 'DELETE':
+          final only = _eqStr(uri, 'friend_id');
+          final some = _inList(uri, 'friend_id');
+          shares.removeWhere(
+            (s) =>
+                s.$1 == id &&
+                ((only != null &&
+                        s.$2 == only &&
+                        (only == _me || isMine(id!))) ||
+                    (some.contains(s.$2) && isMine(id!))),
+          );
+          return (204, null);
+      }
+      return (
+        200,
+        [
+          for (final s in shares)
+            if (s.$1 == id && (isMine(id!) || s.$2 == _me)) {'friend_id': s.$2},
+        ],
+      );
     }
     return (404, {'message': 'Not in the demo: $method $path'});
   }

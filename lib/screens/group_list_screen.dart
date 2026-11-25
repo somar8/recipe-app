@@ -99,6 +99,33 @@ class _GroupListScreenState extends State<GroupListScreen> {
       });
   }
 
+  List<Widget> _grid(
+    BuildContext context,
+    double width,
+    List<GroupRecipes> groups,
+  ) => [
+    SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: Gap.lg),
+      sliver: SliverCardGrid(
+        columns: cardColumns(width),
+        itemCount: groups.length,
+        itemBuilder: (_, i) {
+          final g = groups[i];
+          return Dismissible(
+            key: ValueKey('group-${g.id}'),
+            // Only your own collections can be deleted.
+            direction: g.isMine
+                ? DismissDirection.endToStart
+                : DismissDirection.none,
+            background: const SwipeDeleteBackground(),
+            onDismissed: (_) => _swipeDelete(g),
+            child: _CollectionCard(group: g, onTap: () => _open(g)),
+          );
+        },
+      ),
+    ),
+  ];
+
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
@@ -163,31 +190,30 @@ class _GroupListScreenState extends State<GroupListScreen> {
                             ),
                           ),
                         ),
-                        SliverPadding(
-                          padding: const EdgeInsets.fromLTRB(
-                            Gap.lg,
-                            0,
-                            Gap.lg,
-                            96,
-                          ),
-                          sliver: SliverCardGrid(
-                            columns: cardColumns(box.maxWidth),
-                            itemCount: visible.length,
-                            itemBuilder: (_, i) {
-                              final g = visible[i];
-                              return Dismissible(
-                                key: ValueKey('group-${g.id}'),
-                                direction: DismissDirection.endToStart,
-                                background: const SwipeDeleteBackground(),
-                                onDismissed: (_) => _swipeDelete(g),
-                                child: _CollectionCard(
-                                  group: g,
-                                  onTap: () => _open(g),
-                                ),
-                              );
-                            },
-                          ),
+                        ..._grid(
+                          context,
+                          box.maxWidth,
+                          visible.where((g) => g.isMine).toList(),
                         ),
+                        if (visible.any((g) => !g.isMine)) ...[
+                          SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(
+                              Gap.lg,
+                              Gap.md,
+                              Gap.lg,
+                              0,
+                            ),
+                            sliver: SliverToBoxAdapter(
+                              child: SectionHeader(title: 'Shared with you'),
+                            ),
+                          ),
+                          ..._grid(
+                            context,
+                            box.maxWidth,
+                            visible.where((g) => !g.isMine).toList(),
+                          ),
+                        ],
+                        const SliverToBoxAdapter(child: SizedBox(height: 96)),
                       ],
                     ),
                   ),
@@ -231,7 +257,9 @@ class _CollectionCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      group.description?.isNotEmpty == true
+                      !group.isMine
+                          ? 'From ${group.ownerName ?? 'a friend'} · ${recipes.length} ${recipes.length == 1 ? 'recipe' : 'recipes'}'
+                          : group.description?.isNotEmpty == true
                           ? group.description!
                           : '${recipes.length} ${recipes.length == 1 ? 'recipe' : 'recipes'}',
                       style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),

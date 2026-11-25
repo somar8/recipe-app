@@ -6,7 +6,8 @@ import 'errors.dart';
 class RecipeService {
   SupabaseClient get _db => Supabase.instance.client;
 
-  static const _select = '*, recipe_ingredients(*)';
+  static const _select =
+      '*, recipe_ingredients(*), owner:profiles!recipes_owner_profile_fkey(display_name)';
 
   Future<List<Recipe>> getAll({String? title}) async {
     try {
@@ -54,6 +55,17 @@ class RecipeService {
       throw Exception(friendlyError(e, fallback: 'Failed to save recipe.'));
     }
     return getById(id);
+  }
+
+  /// Makes your own editable copy of a recipe (for example one a friend shared).
+  /// Returns the new recipe's id.
+  Future<int> copy(int id) async {
+    try {
+      return (await _db.rpc('copy_recipe', params: {'source_id': id}) as num)
+          .toInt();
+    } catch (e) {
+      throw Exception(friendlyError(e, fallback: 'Could not save a copy.'));
+    }
   }
 
   Future<void> delete(int id) async {

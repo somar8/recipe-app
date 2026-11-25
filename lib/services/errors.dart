@@ -28,13 +28,16 @@ String friendlyError(
   }
   if (error is PostgrestException) {
     switch (error.code) {
+      case '22023': // send_friend_request: not an email, or your own
+      case '54000': // too many open requests
+        return error.message;
       case 'P0002':
       case 'PGRST116':
         return 'Not found. It may have been deleted.';
       case '23514':
         return 'Please check the values: times and servings must be above 0, and a title is required.';
       case '42501':
-        return 'You are not allowed to do that. Try signing in again.';
+        return 'You can\'t do that. You can only share your own recipes, and only with friends.';
     }
     if (error.code == 'PGRST301' ||
         error.message.toLowerCase().contains('jwt')) {

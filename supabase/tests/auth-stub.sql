@@ -12,7 +12,12 @@ create table auth.users (
 create function auth.uid() returns uuid language sql stable as $$
   select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
 $$;
+-- Like Supabase: all claims of the request's JWT (the email lives here).
+create function auth.jwt() returns jsonb language sql stable as $$
+  select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb
+$$;
 grant usage on schema auth to anon, authenticated;
+grant execute on function auth.jwt() to anon, authenticated;
 grant execute on function auth.uid() to anon, authenticated;
 -- Like Supabase: new tables, sequences and functions in public are open to anon and
 -- authenticated by default; schema.sql narrows this down and RLS decides which rows.

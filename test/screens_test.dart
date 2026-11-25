@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:recipe_app/demo/demo_backend.dart';
 import 'package:recipe_app/main.dart' show RecipeApp;
+import 'package:recipe_app/models/recipe.dart';
 import 'package:recipe_app/services/auth_service.dart';
 import 'package:recipe_app/services/theme_settings.dart';
 import 'package:recipe_app/theme/app_theme.dart';
@@ -33,6 +34,10 @@ const _screens = [
   '/groups/106/edit',
   '/groups/new',
   '/account',
+  '/account/friends',
+  '/recipes/108', // shared by Anna
+  '/groups/110', // Anna's shared collection
+  '/groups/110/recipes/109',
 ];
 
 const _sizes = {
@@ -77,6 +82,7 @@ void main() {
     );
     AuthService().init();
     ThemeSettings().init();
+    Recipe.currentUserId = () => Supabase.instance.client.auth.currentUser?.id;
     await Supabase.instance.client.auth.signInWithPassword(
       email: 'demo@example.com',
       password: 'demo-only',

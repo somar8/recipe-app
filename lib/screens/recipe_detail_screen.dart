@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../models/recipe.dart';
 import '../services/recipe_service.dart';
+import '../services/share_service.dart';
+import '../widgets/share_sheet.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_shell.dart';
 import '../widgets/common.dart';
@@ -83,6 +85,65 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     _load();
   }
 
+  bool _copying = false;
+
+  Future<void> _share() => showShareSheet(
+    context,
+    title: 'Share "${_recipe!.title}"',
+    explanation:
+        'Friends you pick can see this recipe and save their own copy. Only you can change it.',
+    load: () => ShareService().recipeSharedWith(widget.id),
+    save: (ids) => ShareService().setRecipeSharedWith(widget.id, ids),
+  );
+
+  Future<void> _saveCopy() async {
+    setState(() => _copying = true);
+    try {
+      final id = await _recipeService.copy(widget.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: const Text('Saved to your recipes'),
+            action: SnackBarAction(
+              label: 'Open',
+              onPressed: () => context.go('/recipes/$id'),
+            ),
+          ),
+        );
+    } catch (e) {
+      if (mounted) showMessage(context, errorText(e));
+    } finally {
+      if (mounted) setState(() => _copying = false);
+    }
+  }
+
+  /// Removes a recipe a friend shared from your list (it stays theirs).
+  Future<void> _leave() async {
+    final r = _recipe!;
+    try {
+      await ShareService().leaveRecipe(r.id!);
+      if (!mounted) return;
+      // Still visible? Then it comes from a collection they shared.
+      try {
+        await _recipeService.getById(r.id!);
+        if (mounted) {
+          showMessage(
+            context,
+            'It\'s also in a collection ${r.ownerName ?? 'your friend'} shared with you, so it stays there.',
+          );
+        }
+      } catch (_) {
+        if (!mounted) return;
+        showMessage(context, 'Removed "${r.title}" from your list');
+        context.canPop() ? context.pop() : context.go('/recipes');
+      }
+    } catch (e) {
+      if (mounted) showMessage(context, errorText(e));
+    }
+  }
+
   Future<void> _delete() async {
     final r = _recipe!;
     final ok = await confirmDialog(
@@ -148,35 +209,65 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                 onPressed: () =>
                     context.canPop() ? context.pop() : context.go('/recipes'),
               ),
-              actions: [
-                _RoundButton(
-                  icon: Icons.edit_outlined,
-                  tooltip: 'Edit',
-                  onPressed: _edit,
-                ),
-                const SizedBox(width: Gap.xs),
-                PopupMenuButton<String>(
-                  tooltip: 'More',
-                  icon: const _RoundIcon(icon: Icons.more_horiz),
-                  onSelected: (v) {
-                    if (v == 'delete') _delete();
-                  },
-                  itemBuilder: (_) => [
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: ListTile(
-                        leading: Icon(Icons.delete_outline, color: c.error),
-                        title: Text(
-                          'Delete recipe',
-                          style: TextStyle(color: c.error),
-                        ),
-                        contentPadding: EdgeInsets.zero,
+              actions: recipe.isMine
+                  ? [
+                      _RoundButton(
+                        icon: Icons.ios_share,
+                        tooltip: 'Share with friends',
+                        onPressed: _share,
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: Gap.sm),
-              ],
+                      const SizedBox(width: Gap.xs),
+                      _RoundButton(
+                        icon: Icons.edit_outlined,
+                        tooltip: 'Edit',
+                        onPressed: _edit,
+                      ),
+                      const SizedBox(width: Gap.xs),
+                      PopupMenuButton<String>(
+                        tooltip: 'More',
+                        icon: const _RoundIcon(icon: Icons.more_horiz),
+                        onSelected: (v) {
+                          if (v == 'delete') _delete();
+                        },
+                        itemBuilder: (_) => [
+                          PopupMenuItem(
+                            value: 'delete',
+                            child: ListTile(
+                              leading: Icon(
+                                Icons.delete_outline,
+                                color: c.error,
+                              ),
+                              title: Text(
+                                'Delete recipe',
+                                style: TextStyle(color: c.error),
+                              ),
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: Gap.sm),
+                    ]
+                  : [
+                      PopupMenuButton<String>(
+                        tooltip: 'More',
+                        icon: const _RoundIcon(icon: Icons.more_horiz),
+                        onSelected: (v) {
+                          if (v == 'leave') _leave();
+                        },
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(
+                            value: 'leave',
+                            child: ListTile(
+                              leading: Icon(Icons.remove_circle_outline),
+                              title: Text('Remove from my list'),
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: Gap.sm),
+                    ],
               flexibleSpace: FlexibleSpaceBar(
                 collapseMode: CollapseMode.parallax,
                 background: FoodBanner(title: recipe.title, height: 260),
@@ -212,6 +303,19 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     final header = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (!recipe.isMine) ...[
+          SharedByBanner(
+            ownerName: recipe.ownerName ?? 'A friend',
+            message:
+                'You see their latest version. Save a copy to change it your way.',
+            action: FilledButton.icon(
+              onPressed: _copying ? null : _saveCopy,
+              icon: const Icon(Icons.bookmark_add_outlined),
+              label: const Text('Save a copy'),
+            ),
+          ),
+          const SizedBox(height: Gap.lg),
+        ],
         Text(recipe.title, style: t.headlineMedium),
         if (recipe.description != null && recipe.description!.isNotEmpty) ...[
           const SizedBox(height: Gap.sm),

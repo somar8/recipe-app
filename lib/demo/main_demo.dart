@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/recipe.dart';
 import '../theme/app_theme.dart';
 import '../main.dart' show RecipeApp;
 import '../services/auth_service.dart';
@@ -20,6 +21,7 @@ Future<void> main() async {
     httpClient: DemoBackend(),
   );
   AuthService().init();
+  Recipe.currentUserId = () => Supabase.instance.client.auth.currentUser?.id;
   ThemeSettings().init();
   await Supabase.instance.client.auth.signInWithPassword(
     email: 'demo@example.com',

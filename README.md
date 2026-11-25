@@ -14,14 +14,25 @@ There is no backend server: the app talks to Supabase directly. Every user sees 
 changes only their own recipes and groups; the database enforces this itself
 (Row Level Security, see `supabase/schema.sql`).
 
+## Friends and sharing
+
+- **Friends:** Account → Friends. Send a request to an email address; the other person accepts it in their
+  Friends list (a badge on the Account tab shows waiting requests). The app always answers "Request sent", so
+  nobody can find out whether an address has an account. Requests are only shown in the app; no email is sent.
+- **Sharing:** the Share button on your recipe or collection. Friends see your latest version, read-only, and can
+  tap **Save a copy** to get their own editable recipe. A shared collection includes recipes you add to it later.
+  Removing a friend stops all sharing between you.
+- The database enforces all of this (`supabase/schema.sql`), and `supabase/tests/tests.sql` checks it: strangers
+  see nothing, friends see only what was shared and can never change it.
+
 ## Project layout
 
 - `lib/services/` – `auth_service.dart` (Supabase Auth), `recipe_service.dart`, `group_service.dart`, `errors.dart` (clear error messages)
 - `lib/models/` – `Recipe`, `RecipeIngredient`, `GroupRecipes`, read from and written to the database
 - `lib/screens/` – the 8 screens
 - `supabase/schema.sql` – tables, access rules, the `save_recipe` function (saves a recipe and its ingredients in one step) and `ping`
-- `supabase/tests/` – 32 database checks on a throwaway local Postgres: `bash supabase/tests/run.sh` (needs Postgres installed; nothing touches Supabase)
-- `test/` – app tests: `flutter test` (85 tests). `screens_test.dart` opens every screen on the demo data at
+- `supabase/tests/` – 77 database checks on a throwaway local Postgres: `bash supabase/tests/run.sh` (needs Postgres installed; nothing touches Supabase)
+- `test/` – app tests: `flutter test` (109 tests). `screens_test.dart` opens every screen on the demo data at
   phone, tablet and laptop size, in dark mode and at 200% text, and checks layout, tap-target size, button labels
   and text contrast
 - `assets/fonts/` – Fraunces and Inter (SIL Open Font License), bundled so nothing is fetched from Google

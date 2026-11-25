@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'models/recipe.dart';
 import 'config.dart';
 import 'services/auth_service.dart';
 import 'services/theme_settings.dart';
 import 'widgets/app_shell.dart';
 import 'screens/account_screen.dart';
+import 'screens/friends_screen.dart';
 import 'theme/app_theme.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
@@ -31,6 +33,7 @@ Future<void> main() async {
     publishableKey: supabasePublishableKey,
   );
   AuthService().init();
+  Recipe.currentUserId = () => Supabase.instance.client.auth.currentUser?.id;
   ThemeSettings().init();
   runApp(const RecipeApp());
 }
@@ -132,7 +135,16 @@ final _router = GoRouter(
         ),
         StatefulShellBranch(
           routes: [
-            GoRoute(path: '/account', builder: (_, _) => const AccountScreen()),
+            GoRoute(
+              path: '/account',
+              builder: (_, _) => const AccountScreen(),
+              routes: [
+                GoRoute(
+                  path: 'friends',
+                  builder: (_, _) => const FriendsScreen(),
+                ),
+              ],
+            ),
           ],
         ),
       ],

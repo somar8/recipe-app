@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import '../models/recipe.dart';
+import '../models/recipe_filters.dart';
 import '../theme/app_theme.dart';
 import 'food_art.dart';
 
 /// Prep plus cook time, or null when neither is known.
-int? totalMinutes(Recipe r) {
-  if (r.prepTimeMinutes == null && r.cookTimeMinutes == null) return null;
-  return (r.prepTimeMinutes ?? 0) + (r.cookTimeMinutes ?? 0);
-}
+int? totalMinutes(Recipe r) => totalMinutesOf(r);
 
 /// "45 min", "1 h", "1 h 20 min".
 String formatMinutes(int minutes) {
@@ -110,6 +108,11 @@ class RecipeCard extends StatelessWidget {
                           MetaLabel(
                             icon: Icons.people_outline,
                             text: '${recipe.servings}',
+                          ),
+                        if (!recipe.isMine)
+                          MetaLabel(
+                            icon: Icons.people_outline,
+                            text: 'From ${recipe.ownerName ?? 'a friend'}',
                           ),
                         if (count > 0)
                           MetaLabel(
@@ -374,6 +377,97 @@ class SliverCardGrid extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// Round initial for a person.
+class PersonAvatar extends StatelessWidget {
+  const PersonAvatar({
+    super.key,
+    required this.name,
+    this.radius = 20,
+    this.onBanner = false,
+  });
+
+  final String name;
+  final double radius;
+
+  /// On a green banner: use a light circle so it stands out.
+  final bool onBanner;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = Theme.of(context).colorScheme;
+    final initial = name.isEmpty
+        ? '?'
+        : String.fromCharCode(name.runes.first).toUpperCase();
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: onBanner ? c.surface : c.secondaryContainer,
+      foregroundColor: onBanner ? c.secondary : c.onSecondaryContainer,
+      child: Text(
+        initial,
+        style: TextStyle(fontWeight: FontWeight.w600, fontSize: radius * 0.8),
+      ),
+    );
+  }
+}
+
+/// Strip on a shared recipe or collection: who shared it, and what you can do with it.
+class SharedByBanner extends StatelessWidget {
+  const SharedByBanner({
+    super.key,
+    required this.ownerName,
+    required this.message,
+    this.action,
+  });
+
+  final String ownerName;
+  final String message;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = Theme.of(context).colorScheme;
+    final t = Theme.of(context).textTheme;
+    return Container(
+      padding: const EdgeInsets.all(Gap.md),
+      decoration: BoxDecoration(
+        color: c.secondaryContainer,
+        borderRadius: BorderRadius.circular(Corners.sm),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              PersonAvatar(name: ownerName, radius: 16, onBanner: true),
+              const SizedBox(width: Gap.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Shared by $ownerName',
+                      style: t.titleSmall?.copyWith(
+                        color: c.onSecondaryContainer,
+                      ),
+                    ),
+                    Text(
+                      message,
+                      style: t.bodySmall?.copyWith(
+                        color: c.onSecondaryContainer,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (action != null) ...[const SizedBox(height: Gap.md), action!],
+        ],
+      ),
     );
   }
 }

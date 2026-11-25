@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
 import 'food_art.dart';
+import '../services/friend_service.dart';
 
 /// Screen widths where the layout changes (Material 3 window size classes).
 abstract final class Breakpoints {
@@ -35,10 +36,35 @@ const _destinations = [
 
 /// The frame around the three main tabs: a bottom bar on phones, a side rail on
 /// tablets and laptops. Each tab keeps its own history and scroll position.
-class AppShell extends StatelessWidget {
+class AppShell extends StatefulWidget {
   const AppShell({super.key, required this.shell});
 
   final StatefulNavigationShell shell;
+
+  @override
+  State<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends State<AppShell> {
+  StatefulNavigationShell get shell => widget.shell;
+
+  @override
+  void initState() {
+    super.initState();
+    // Friend requests waiting: shown as a badge on the Account tab.
+    FriendService().refreshWaitingCount();
+  }
+
+  /// Account icon with the number of waiting friend requests.
+  Widget _icon(_Destination d, {required bool selected}) {
+    final icon = Icon(selected ? d.selectedIcon : d.icon);
+    if (d.label != 'Account') return icon;
+    return ValueListenableBuilder<int>(
+      valueListenable: FriendService().waitingCount,
+      builder: (_, count, _) =>
+          Badge(isLabelVisible: count > 0, label: Text('$count'), child: icon),
+    );
+  }
 
   void _select(int index) {
     // Tapping the current tab again returns to its first screen.
@@ -58,8 +84,8 @@ class AppShell extends StatelessWidget {
           destinations: [
             for (final d in _destinations)
               NavigationDestination(
-                icon: Icon(d.icon),
-                selectedIcon: Icon(d.selectedIcon),
+                icon: _icon(d, selected: false),
+                selectedIcon: _icon(d, selected: true),
                 label: d.label,
               ),
           ],
@@ -100,8 +126,8 @@ class AppShell extends StatelessWidget {
             destinations: [
               for (final d in _destinations)
                 NavigationRailDestination(
-                  icon: Icon(d.icon),
-                  selectedIcon: Icon(d.selectedIcon),
+                  icon: _icon(d, selected: false),
+                  selectedIcon: _icon(d, selected: true),
                   label: Text(d.label),
                 ),
             ],

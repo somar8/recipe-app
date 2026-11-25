@@ -33,6 +33,18 @@ class Recipe {
   int? cookTimeMinutes;
   int? servings;
 
+  /// The account that owns this recipe; null for a recipe that isn't saved yet.
+  String? ownerId;
+
+  /// Display name of the owner, for recipes a friend shared with you.
+  String? ownerName;
+
+  /// True for your own recipes, false for ones a friend shared with you.
+  bool get isMine => ownerId == null || ownerId == currentUserId?.call();
+
+  /// Set by the app at start-up: returns the signed-in user's id.
+  static String? Function()? currentUserId;
+
   Recipe({
     this.id,
     required this.title,
@@ -42,6 +54,8 @@ class Recipe {
     this.prepTimeMinutes,
     this.cookTimeMinutes,
     this.servings,
+    this.ownerId,
+    this.ownerName,
   });
 
   /// Reads a row of the `recipes` table, with `recipe_ingredients` nested when selected.
@@ -63,6 +77,8 @@ class Recipe {
       prepTimeMinutes: (row['prep_time_minutes'] as num?)?.toInt(),
       cookTimeMinutes: (row['cook_time_minutes'] as num?)?.toInt(),
       servings: (row['servings'] as num?)?.toInt(),
+      ownerId: row['user_id'] as String?,
+      ownerName: (row['owner'] as Map?)?['display_name'] as String?,
     );
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../services/auth_service.dart';
+import '../services/friend_service.dart';
 import '../services/theme_settings.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_shell.dart';
@@ -137,6 +138,26 @@ class _AccountScreenState extends State<AccountScreen> {
                       ),
                     ],
                   ),
+                ),
+              ),
+              const SizedBox(height: Gap.md),
+              Card(
+                child: ListTile(
+                  leading: Icon(Icons.group_outlined, color: c.primary),
+                  title: const Text('Friends'),
+                  subtitle: const Text('Add friends and answer requests'),
+                  trailing: ValueListenableBuilder<int>(
+                    valueListenable: FriendService().waitingCount,
+                    builder: (_, count, _) => Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (count > 0) Badge(label: Text('$count')),
+                        const SizedBox(width: Gap.sm),
+                        const Icon(Icons.chevron_right),
+                      ],
+                    ),
+                  ),
+                  onTap: () => context.push('/account/friends'),
                 ),
               ),
               const SizedBox(height: Gap.xl),

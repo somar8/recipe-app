@@ -145,3 +145,191 @@ select pg_temp.check((select count(*) = 0 from public.recipes where user_id = 'a
   and (select count(*) = 0 from public.recipe_groups where user_id = 'aaaaaaaa-0000-0000-0000-000000000001'),
   'deleting an account deletes its recipes and groups');
 select pg_temp.check((select count(*) = 1 from public.recipes), 'the other account keeps its recipes');
+
+-- =====================================================================
+-- Friends and sharing
+-- =====================================================================
+reset role;
+-- Acting as someone now also sets their email, which friend requests are matched on.
+create or replace function pg_temp.act_as(uid uuid, email text) returns void language sql as $$
+  select set_config('request.jwt.claim.sub', uid::text, false),
+         set_config('request.jwt.claims', json_build_object('sub', uid, 'email', email)::text, false);
+$$;
+
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('cccccccc-0000-0000-0000-000000000003', 'Carol@Example.com', '{"username":"Carol"}'),
+  ('dddddddd-0000-0000-0000-000000000004', 'dave@example.com', '{"username":"Dave"}'),
+  ('eeeeeeee-0000-0000-0000-000000000005', 'erin@example.com', null);
+
+select pg_temp.check((select display_name = 'Carol' and email = 'carol@example.com' from public.profiles
+  where id = 'cccccccc-0000-0000-0000-000000000003'), 'a profile is made at sign-up, with the name and a lower-case email');
+select pg_temp.check((select display_name = 'erin' from public.profiles where id = 'eeeeeeee-0000-0000-0000-000000000005'),
+  'without a name, the profile uses the first part of the email');
+
+-- ---------- Carol sends requests ----------
+select pg_temp.act_as('cccccccc-0000-0000-0000-000000000003', 'carol@example.com');
+set role authenticated;
+select public.send_friend_request('  DAVE@example.com ');
+select public.send_friend_request('frank@example.com'); -- no account (yet)
+select public.send_friend_request('dave@example.com');  -- again: no duplicate
+select pg_temp.check((select array_agg(to_email order by to_email) = array['dave@example.com','frank@example.com']
+  from public.friend_requests), 'requests are stored once, in lower case, for accounts and non-accounts alike');
+select pg_temp.check((select count(*) = 1 from public.profiles), 'the sender cannot see the profile of someone they asked (no hint they have an account)');
+do $$ begin
+  perform public.send_friend_request('carol@example.com');
+  perform pg_temp.check(false, 'you cannot send a request to yourself');
+exception when invalid_parameter_value then perform pg_temp.check(true, 'you cannot send a request to yourself'); end $$;
+do $$ begin
+  perform public.send_friend_request('not an email');
+  perform pg_temp.check(false, 'a request needs a real email address');
+exception when invalid_parameter_value then perform pg_temp.check(true, 'a request needs a real email address'); end $$;
+do $$ begin
+  insert into public.friend_requests (to_email) values ('someone@example.com');
+  perform pg_temp.check(false, 'requests can only be sent through send_friend_request');
+exception when insufficient_privilege then perform pg_temp.check(true, 'requests can only be sent through send_friend_request'); end $$;
+
+-- ---------- Erin, a stranger, sees nothing ----------
+select pg_temp.act_as('eeeeeeee-0000-0000-0000-000000000005', 'erin@example.com');
+select pg_temp.check((select count(*) = 0 from public.friend_requests), 'a stranger sees no one else''s requests');
+select pg_temp.check((select count(*) = 1 from public.profiles), 'a stranger sees only their own profile');
+reset role;
+select id as dave_request from public.friend_requests where to_email = 'dave@example.com' \gset
+select set_config('my.dave_request', :'dave_request', false) \g /dev/null
+select pg_temp.act_as('eeeeeeee-0000-0000-0000-000000000005', 'erin@example.com');
+set role authenticated;
+do $$ begin
+  perform public.accept_friend_request(current_setting('my.dave_request')::bigint);
+  perform pg_temp.check(false, 'nobody can accept a request meant for someone else');
+exception when no_data_found then perform pg_temp.check(true, 'nobody can accept a request meant for someone else'); end $$;
+delete from public.friend_requests;
+select pg_temp.check(true, 'a stranger''s delete is ignored (checked below)');
+
+-- ---------- Dave sees and accepts ----------
+select pg_temp.act_as('dddddddd-0000-0000-0000-000000000004', 'dave@example.com');
+select pg_temp.check((select count(*) = 1 from public.friend_requests), 'the addressee sees the waiting request');
+select pg_temp.check((select display_name = 'Carol' from public.profiles where id = 'cccccccc-0000-0000-0000-000000000003'),
+  'the addressee can see who sent it');
+select pg_temp.check(public.accept_friend_request(:dave_request) = 'cccccccc-0000-0000-0000-000000000003', 'accepting makes you friends');
+select pg_temp.check((select count(*) = 0 from public.friend_requests where to_email = 'dave@example.com'), 'the request is gone after accepting');
+select pg_temp.check((select array_agg(display_name) = array['Carol'] from public.list_friends()), 'list_friends shows the new friend by name');
+select pg_temp.act_as('cccccccc-0000-0000-0000-000000000003', 'carol@example.com');
+select pg_temp.check((select array_agg(display_name) = array['Dave'] from public.list_friends()), 'the friendship shows for both');
+select public.send_friend_request('dave@example.com');
+select pg_temp.check((select count(*) = 0 from public.friend_requests where to_email = 'dave@example.com'),
+  'asking an existing friend again does nothing');
+
+-- ---------- Carol's recipes and sharing ----------
+select public.save_recipe('{"title":"Lasagne","ingredients":[{"name":"pasta sheets"},{"name":"ragu"}]}') as lasagne \gset
+select public.save_recipe('{"title":"Tiramisu","ingredients":[{"name":"mascarpone"}]}') as tiramisu \gset
+insert into public.recipe_groups (name) values ('Italian') returning id as italian \gset
+insert into public.recipe_group_items (group_id, recipe_id) values (:italian, :tiramisu);
+select set_config('my.lasagne', :'lasagne', false), set_config('my.tiramisu', :'tiramisu', false),
+       set_config('my.italian', :'italian', false) \g /dev/null
+
+select pg_temp.act_as('dddddddd-0000-0000-0000-000000000004', 'dave@example.com');
+select pg_temp.check((select count(*) = 0 from public.recipes where user_id = 'cccccccc-0000-0000-0000-000000000003'),
+  'a friend sees nothing that was not shared');
+
+select pg_temp.act_as('cccccccc-0000-0000-0000-000000000003', 'carol@example.com');
+insert into public.recipe_shares (recipe_id, friend_id) values (:lasagne, 'dddddddd-0000-0000-0000-000000000004');
+do $$ begin
+  insert into public.recipe_shares (recipe_id, friend_id) values (current_setting('my.lasagne')::bigint, 'eeeeeeee-0000-0000-0000-000000000005');
+  perform pg_temp.check(false, 'you can only share with friends');
+exception when insufficient_privilege then perform pg_temp.check(true, 'you can only share with friends'); end $$;
+
+select pg_temp.act_as('dddddddd-0000-0000-0000-000000000004', 'dave@example.com');
+select pg_temp.check((select title = 'Lasagne' from public.recipes where id = :lasagne), 'a shared recipe is visible to the friend');
+select pg_temp.check((select count(*) = 2 from public.recipe_ingredients where recipe_id = :lasagne), 'with its ingredients');
+select pg_temp.check((select count(*) = 0 from public.recipes where id = :tiramisu), 'but not the owner''s other recipes');
+update public.recipes set title = 'Hacked' where id = :lasagne;
+delete from public.recipe_ingredients where recipe_id = :lasagne;
+delete from public.recipes where id = :lasagne;
+do $$ begin
+  perform public.save_recipe(jsonb_build_object('id', current_setting('my.lasagne')::bigint, 'title', 'Hacked'));
+  perform pg_temp.check(false, 'a friend cannot save over a shared recipe');
+exception when no_data_found then perform pg_temp.check(true, 'a friend cannot save over a shared recipe'); end $$;
+do $$ begin
+  insert into public.recipe_shares (recipe_id, friend_id) values (current_setting('my.lasagne')::bigint, 'eeeeeeee-0000-0000-0000-000000000005');
+  perform pg_temp.check(false, 'a friend cannot pass a shared recipe on');
+exception when insufficient_privilege then perform pg_temp.check(true, 'a friend cannot pass a shared recipe on'); end $$;
+insert into public.recipe_groups (name) values ('Dave''s favourites') returning id as daves_group \gset
+select set_config('my.daves_group', :'daves_group', false) \g /dev/null
+do $$ begin
+  insert into public.recipe_group_items (group_id, recipe_id) values (current_setting('my.daves_group')::bigint, current_setting('my.lasagne')::bigint);
+  perform pg_temp.check(false, 'a shared recipe cannot go into your own collection (save a copy first)');
+exception when insufficient_privilege then perform pg_temp.check(true, 'a shared recipe cannot go into your own collection (save a copy first)'); end $$;
+
+select public.copy_recipe(:lasagne) as dave_copy \gset
+select pg_temp.check((select user_id = auth.uid() and title = 'Lasagne' from public.recipes where id = :dave_copy),
+  'saving a copy gives the friend their own recipe');
+select pg_temp.check((select count(*) = 2 from public.recipe_ingredients where recipe_id = :dave_copy), 'the copy has the ingredients');
+select public.save_recipe(jsonb_build_object('id', :dave_copy, 'title', 'Dave''s lasagne'));
+
+-- ---------- Shared collections ----------
+select pg_temp.act_as('cccccccc-0000-0000-0000-000000000003', 'carol@example.com');
+select pg_temp.check((select title = 'Lasagne' from public.recipes where id = :lasagne), 'the friend''s changes and deletes did nothing; the copy is separate');
+insert into public.collection_shares (group_id, friend_id) values (:italian, 'dddddddd-0000-0000-0000-000000000004');
+select public.save_recipe('{"title":"Panna cotta"}') as panna \gset
+insert into public.recipe_group_items (group_id, recipe_id) values (:italian, :panna);
+
+select pg_temp.act_as('dddddddd-0000-0000-0000-000000000004', 'dave@example.com');
+select pg_temp.check((select name = 'Italian' from public.recipe_groups where id = :italian), 'a shared collection is visible');
+select pg_temp.check((select count(*) = 2 from public.recipes r join public.recipe_group_items i on i.recipe_id = r.id where i.group_id = :italian),
+  'with its recipes, including ones added after sharing');
+select pg_temp.check((select count(*) = 1 from public.recipe_ingredients where recipe_id = :tiramisu), 'and their ingredients');
+delete from public.recipe_group_items where group_id = :italian;
+update public.recipe_groups set name = 'Hacked' where id = :italian;
+select pg_temp.check((select count(*) = 2 from public.recipe_group_items where group_id = :italian)
+  and (select name = 'Italian' from public.recipe_groups where id = :italian), 'a friend cannot change a shared collection');
+
+-- The friend can remove a shared recipe from their own list.
+delete from public.recipe_shares where recipe_id = :lasagne;
+select pg_temp.check((select count(*) = 0 from public.recipes where id = :lasagne), 'a friend can remove a share from their list');
+
+-- ---------- Erin stays outside ----------
+select pg_temp.act_as('eeeeeeee-0000-0000-0000-000000000005', 'erin@example.com');
+select pg_temp.check((select count(*) = 0 from public.recipes) and (select count(*) = 0 from public.recipe_groups)
+  and (select count(*) = 0 from public.recipe_shares) and (select count(*) = 0 from public.collection_shares)
+  and (select count(*) = 0 from public.friendships), 'a stranger sees no recipes, collections, shares or friendships');
+delete from public.collection_shares;
+select pg_temp.check((select count(*) = 0 from public.list_friends()), 'a stranger has no friends listed');
+
+-- ---------- Requests both ways become a friendship ----------
+select public.send_friend_request('carol@example.com');
+select pg_temp.act_as('cccccccc-0000-0000-0000-000000000003', 'carol@example.com');
+select public.send_friend_request('Erin@example.com');
+select pg_temp.check((select count(*) = 2 from public.list_friends()), 'asking someone who already asked you makes you friends at once');
+
+-- ---------- Someone who signs up later finds the request ----------
+reset role;
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('ffffffff-0000-0000-0000-000000000006', 'frank@example.com', '{"username":"Frank"}');
+select pg_temp.act_as('ffffffff-0000-0000-0000-000000000006', 'frank@example.com');
+set role authenticated;
+select pg_temp.check((select count(*) = 1 from public.friend_requests), 'a request waits for someone who signs up later');
+delete from public.friend_requests;
+select pg_temp.check((select count(*) = 0 from public.friend_requests), 'the addressee can decline (delete) a request');
+
+-- ---------- Ending a friendship ends the sharing ----------
+reset role;
+select pg_temp.check((select count(*) = 1 from public.collection_shares), 'the stranger''s delete of shares did nothing');
+select pg_temp.act_as('dddddddd-0000-0000-0000-000000000004', 'dave@example.com');
+set role authenticated;
+delete from public.friendships;
+select pg_temp.check((select count(*) = 0 from public.recipe_groups where id = :italian), 'after unfriending, shared collections disappear');
+reset role;
+select pg_temp.check((select count(*) = 0 from public.collection_shares) and (select count(*) = 0 from public.recipe_shares),
+  'unfriending removes everything the two shared');
+select pg_temp.check((select count(*) = 1 from public.friendships), 'the other friendship (Carol and Erin) stays');
+
+-- ---------- Signed-out visitors ----------
+set role anon;
+do $$ begin
+  perform count(*) from public.profiles;
+  perform pg_temp.check(false, 'a signed-out visitor cannot read profiles');
+exception when insufficient_privilege then perform pg_temp.check(true, 'a signed-out visitor cannot read profiles'); end $$;
+do $$ begin
+  perform public.send_friend_request('x@example.com');
+  perform pg_temp.check(false, 'a signed-out visitor cannot send requests');
+exception when insufficient_privilege then perform pg_temp.check(true, 'a signed-out visitor cannot send requests'); end $$;
+reset role;

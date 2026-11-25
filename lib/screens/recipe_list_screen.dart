@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../widgets/skeleton.dart';
 import 'package:go_router/go_router.dart';
 import '../models/recipe.dart';
+import '../models/recipe_filters.dart';
 import '../services/auth_service.dart';
 import '../services/recipe_service.dart';
 import '../theme/app_theme.dart';
@@ -27,7 +28,15 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
   bool _loading = true;
   String? _error;
   String _query = '';
-  bool _quickOnly = false;
+  TimeFilter _time = TimeFilter.any;
+  OwnerFilter _owner = OwnerFilter.all;
+
+  bool get _filtering => _time != TimeFilter.any || _owner != OwnerFilter.all;
+
+  void _clearFilters() => setState(() {
+    _time = TimeFilter.any;
+    _owner = OwnerFilter.all;
+  });
   _Sort _sort = _Sort.newest;
 
   @override
@@ -72,10 +81,7 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
     final q = _query.trim().toLowerCase();
     final list = _recipes.where((r) {
       if (_hidden.contains(r.id)) return false;
-      if (_quickOnly) {
-        final total = totalMinutes(r);
-        if (total == null || total > 30) return false;
-      }
+      if (!_time.matches(r) || !_owner.matches(r)) return false;
       if (q.isEmpty) return true;
       return r.title.toLowerCase().contains(q) ||
           (r.description?.toLowerCase().contains(q) ?? false) ||
@@ -258,26 +264,13 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
                     ),
                   ),
                   const SizedBox(height: Gap.md),
-                  Wrap(
-                    spacing: Gap.sm,
-                    children: [
-                      ChoiceChip(
-                        label: const Text('All'),
-                        selected: !_quickOnly,
-                        onSelected: (_) => setState(() => _quickOnly = false),
-                      ),
-                      ChoiceChip(
-                        avatar: Icon(
-                          Icons.bolt,
-                          size: 18,
-                          color: _quickOnly ? c.onPrimary : c.secondary,
-                        ),
-                        label: const Text('Under 30 min'),
-                        selected: _quickOnly,
-                        onSelected: (_) =>
-                            setState(() => _quickOnly = !_quickOnly),
-                      ),
-                    ],
+                  _FilterChips(
+                    time: _time,
+                    owner: _owner,
+                    showOwner: _recipes.any((r) => !r.isMine),
+                    onTime: (t) => setState(() => _time = t),
+                    onOwner: (o) => setState(() => _owner = o),
+                    onClear: _filtering ? _clearFilters : null,
                   ),
                   const SizedBox(height: Gap.md),
                 ],
@@ -290,13 +283,16 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
               child: EmptyState(
                 icon: Icons.search_off,
                 title: 'No matches',
-                message: 'Try another word, or show all recipes.',
+                message: _filtering
+                    ? 'Nothing fits "${[if (_owner != OwnerFilter.all) _owner.label, if (_time != TimeFilter.any) _time.label].join(' · ')}". Try another filter, or show all recipes.'
+                    : 'Try another word, or show all recipes.',
                 actionLabel: 'Show all',
                 onAction: () {
                   _searchController.clear();
                   setState(() {
                     _query = '';
-                    _quickOnly = false;
+                    _time = TimeFilter.any;
+                    _owner = OwnerFilter.all;
                   });
                 },
               ),
@@ -311,7 +307,10 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
                   final r = visible[i];
                   return Dismissible(
                     key: ValueKey('recipe-${r.id}'),
-                    direction: DismissDirection.endToStart,
+                    // Only your own recipes can be deleted.
+                    direction: r.isMine
+                        ? DismissDirection.endToStart
+                        : DismissDirection.none,
                     background: const SwipeDeleteBackground(),
                     onDismissed: (_) => _swipeDelete(r),
                     child: RecipeCard(recipe: r, onTap: () => _open(r)),
@@ -321,6 +320,70 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
             ),
         ],
       ),
+    );
+  }
+}
+
+/// The filter chips under the search field. Each row picks one option.
+class _FilterChips extends StatelessWidget {
+  const _FilterChips({
+    required this.time,
+    required this.owner,
+    required this.showOwner,
+    required this.onTime,
+    required this.onOwner,
+    required this.onClear,
+  });
+
+  final TimeFilter time;
+  final OwnerFilter owner;
+  final bool showOwner;
+  final ValueChanged<TimeFilter> onTime;
+  final ValueChanged<OwnerFilter> onOwner;
+  final VoidCallback? onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = Theme.of(context).colorScheme;
+    Widget row(List<Widget> chips) => SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(spacing: Gap.sm, children: chips),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      spacing: Gap.sm,
+      children: [
+        if (showOwner)
+          row([
+            for (final o in OwnerFilter.values)
+              ChoiceChip(
+                label: Text(o.label),
+                selected: owner == o,
+                onSelected: (_) => onOwner(o),
+              ),
+          ]),
+        row([
+          for (final t in TimeFilter.values)
+            ChoiceChip(
+              avatar: t == TimeFilter.any
+                  ? null
+                  : Icon(
+                      Icons.schedule,
+                      size: 16,
+                      color: time == t ? c.onPrimary : c.secondary,
+                    ),
+              label: Text(t.label),
+              selected: time == t,
+              onSelected: (_) => onTime(t),
+            ),
+          if (onClear != null)
+            TextButton.icon(
+              onPressed: onClear,
+              icon: const Icon(Icons.close, size: 18),
+              label: const Text('Clear'),
+            ),
+        ]),
+      ],
     );
   }
 }

@@ -5,6 +5,8 @@ import '../models/group_recipes.dart';
 import '../models/recipe.dart';
 import '../services/group_service.dart';
 import '../services/recipe_service.dart';
+import '../services/share_service.dart';
+import '../widgets/share_sheet.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_shell.dart';
 import '../widgets/common.dart';
@@ -70,13 +72,38 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     final inGroup = (_group?.recipes ?? const <Recipe>[])
         .map((r) => r.id)
         .toSet();
-    return _allRecipes.where((r) => !inGroup.contains(r.id)).toList()
+    // Only your own recipes can go into your collection (save a shared one as a copy first).
+    return _allRecipes
+        .where((r) => r.isMine && !inGroup.contains(r.id))
+        .toList()
       ..sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
   }
 
   Future<void> _edit() async {
     await context.push('/groups/${widget.id}/edit');
     _load();
+  }
+
+  Future<void> _share() => showShareSheet(
+    context,
+    title: 'Share "${_group!.name}"',
+    explanation:
+        'Friends you pick can see this collection and every recipe in it, including ones you add later. Only you can change it.',
+    load: () => ShareService().collectionSharedWith(widget.id),
+    save: (ids) => ShareService().setCollectionSharedWith(widget.id, ids),
+  );
+
+  /// Removes a collection a friend shared from your list (it stays theirs).
+  Future<void> _leave() async {
+    final g = _group!;
+    try {
+      await ShareService().leaveCollection(g.id!);
+      if (!mounted) return;
+      showMessage(context, 'Removed "${g.name}" from your list');
+      context.canPop() ? context.pop() : context.go('/groups');
+    } catch (e) {
+      if (mounted) showMessage(context, errorText(e));
+    }
   }
 
   Future<void> _delete() async {
@@ -147,6 +174,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
+      useRootNavigator: true, // covers the bottom bar too
       builder: (_) => _AddRecipesSheet(recipes: candidates),
     );
     if (picked != null) _add(picked);
@@ -168,7 +196,31 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         // The name is in the header below; the bar only holds actions.
         actions: group == null
             ? null
+            : !group.isMine
+            ? [
+                PopupMenuButton<String>(
+                  tooltip: 'More',
+                  onSelected: (v) {
+                    if (v == 'leave') _leave();
+                  },
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(
+                      value: 'leave',
+                      child: ListTile(
+                        leading: Icon(Icons.remove_circle_outline),
+                        title: Text('Remove from my list'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  ],
+                ),
+              ]
             : [
+                IconButton(
+                  icon: const Icon(Icons.ios_share),
+                  tooltip: 'Share with friends',
+                  onPressed: _share,
+                ),
                 IconButton(
                   icon: const Icon(Icons.edit_outlined),
                   tooltip: 'Edit',
@@ -195,7 +247,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 ),
               ],
       ),
-      floatingActionButton: group == null || (group.recipes?.isEmpty ?? true)
+      floatingActionButton:
+          group == null || !group.isMine || (group.recipes?.isEmpty ?? true)
           ? null
           : FloatingActionButton.extended(
               onPressed: _openAddSheet,
@@ -227,35 +280,51 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                             Gap.lg,
                           ),
                           sliver: SliverToBoxAdapter(
-                            child: Row(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                CollectionArt(name: group.name, size: 72),
-                                const SizedBox(width: Gap.lg),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(group.name, style: t.headlineSmall),
-                                      if (group.description?.isNotEmpty ==
-                                          true) ...[
-                                        const SizedBox(height: Gap.xs),
-                                        Text(
-                                          group.description!,
-                                          style: t.bodyMedium?.copyWith(
-                                            color: c.onSurfaceVariant,
-                                          ),
-                                        ),
-                                      ],
-                                      const SizedBox(height: Gap.xs),
-                                      Text(
-                                        '${recipes.length} ${recipes.length == 1 ? 'recipe' : 'recipes'}',
-                                        style: t.labelLarge?.copyWith(
-                                          color: c.primary,
-                                        ),
-                                      ),
-                                    ],
+                                if (!group.isMine) ...[
+                                  SharedByBanner(
+                                    ownerName: group.ownerName ?? 'A friend',
+                                    message:
+                                        'Recipes they add later show up here too. Open one to save a copy.',
                                   ),
+                                  const SizedBox(height: Gap.lg),
+                                ],
+                                Row(
+                                  children: [
+                                    CollectionArt(name: group.name, size: 72),
+                                    const SizedBox(width: Gap.lg),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            group.name,
+                                            style: t.headlineSmall,
+                                          ),
+                                          if (group.description?.isNotEmpty ==
+                                              true) ...[
+                                            const SizedBox(height: Gap.xs),
+                                            Text(
+                                              group.description!,
+                                              style: t.bodyMedium?.copyWith(
+                                                color: c.onSurfaceVariant,
+                                              ),
+                                            ),
+                                          ],
+                                          const SizedBox(height: Gap.xs),
+                                          Text(
+                                            '${recipes.length} ${recipes.length == 1 ? 'recipe' : 'recipes'}',
+                                            style: t.labelLarge?.copyWith(
+                                              color: c.primary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -267,10 +336,11 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                             child: EmptyState(
                               icon: Icons.playlist_add,
                               title: 'Nothing here yet',
-                              message:
-                                  'Pick recipes to add to this collection.',
-                              actionLabel: 'Add recipes',
-                              onAction: _openAddSheet,
+                              message: group.isMine
+                                  ? 'Pick recipes to add to this collection.'
+                                  : 'Recipes ${group.ownerName ?? 'your friend'} adds will show up here.',
+                              actionLabel: group.isMine ? 'Add recipes' : null,
+                              onAction: group.isMine ? _openAddSheet : null,
                             ),
                           )
                         else
@@ -289,14 +359,16 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                                 return RecipeCard(
                                   recipe: r,
                                   onTap: () => _openRecipe(r),
-                                  trailing: IconButton(
-                                    icon: const Icon(
-                                      Icons.remove_circle_outline,
-                                    ),
-                                    tooltip: 'Remove from collection',
-                                    color: c.onSurfaceVariant,
-                                    onPressed: () => _remove(r),
-                                  ),
+                                  trailing: !group.isMine
+                                      ? null
+                                      : IconButton(
+                                          icon: const Icon(
+                                            Icons.remove_circle_outline,
+                                          ),
+                                          tooltip: 'Remove from collection',
+                                          color: c.onSurfaceVariant,
+                                          onPressed: () => _remove(r),
+                                        ),
                                 );
                               },
                             ),
