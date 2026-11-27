@@ -6,6 +6,7 @@ import '../models/recipe.dart';
 import '../services/ai_service.dart';
 import '../services/recipe_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/ai_language_button.dart';
 import '../widgets/app_shell.dart';
 import '../widgets/common.dart';
 import '../widgets/paste_ingredients_sheet.dart';
@@ -613,6 +614,7 @@ class _AiStepsButton extends StatelessWidget {
               : const Icon(Icons.auto_awesome),
           label: Text(busy ? l.writingSteps : l.writeStepsWithAi),
         ),
+        const AiLanguageButton(),
         ValueListenableBuilder<int?>(
           valueListenable: AiService().remaining,
           builder: (context, left, _) => left == null

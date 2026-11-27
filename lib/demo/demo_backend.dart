@@ -17,6 +17,9 @@ class DemoBackend extends http.BaseClient {
   /// Tests can make the AI fail with this error code ('busy', 'daily_limit', ...).
   String? aiError;
 
+  /// The language the last AI request asked for.
+  String? lastAiLanguage;
+
   /// Function names to answer with 404, like a project whose setup is out of date.
   final missingFunctions = <String>{};
 
@@ -388,6 +391,7 @@ class DemoBackend extends http.BaseClient {
   /// Pretend AI: steps that use the recipe's ingredients, and three meals built on
   /// what you have. Shows the feature without an AI key.
   (int, Object?) _ai(Map body) {
+    lastAiLanguage = body['language'] as String?;
     if (aiError != null) {
       return (aiError == 'daily_limit' ? 429 : 503, {'error': aiError});
     }

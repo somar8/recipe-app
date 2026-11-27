@@ -1121,4 +1121,9 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get aiFailed =>
       'Die KI konnte diesmal nicht antworten. Versuch es noch einmal; diese Anfrage zählt nicht.';
+
+  @override
+  String aiAnswerIn(String language) {
+    return 'KI-Sprache: $language';
+  }
 }

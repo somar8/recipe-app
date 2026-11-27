@@ -1123,4 +1123,9 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get aiFailed =>
       'لم يتمكن الذكاء الاصطناعي من الإجابة هذه المرة. حاول مرة أخرى؛ لم يُحتسب هذا الطلب.';
+
+  @override
+  String aiAnswerIn(String language) {
+    return 'لغة الذكاء الاصطناعي: $language';
+  }
 }

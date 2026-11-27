@@ -1106,4 +1106,9 @@ class AppLocalizationsNl extends AppLocalizations {
   @override
   String get aiFailed =>
       'De AI kon nu geen antwoord geven. Probeer het opnieuw; dit verzoek telde niet mee.';
+
+  @override
+  String aiAnswerIn(String language) {
+    return 'AI-taal: $language';
+  }
 }

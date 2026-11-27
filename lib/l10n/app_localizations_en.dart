@@ -1099,4 +1099,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get aiFailed =>
       'The AI couldn\'t answer this time. Try again; this one didn\'t count.';
+
+  @override
+  String aiAnswerIn(String language) {
+    return 'AI language: $language';
+  }
 }

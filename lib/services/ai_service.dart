@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../l10n/l10n.dart';
 import '../models/recipe.dart';
@@ -79,8 +79,16 @@ class AiService {
   /// Requests left today, once the first answer says so.
   final remaining = ValueNotifier<int?>(null);
 
+  /// The language the AI answers in. null = the app's language (the default), so the
+  /// answer follows the app until someone picks another one.
+  final answerLanguage = ValueNotifier<Locale?>(null);
+
+  /// The language actually used for the next answer.
+  Locale get effectiveAnswerLanguage =>
+      answerLanguage.value ?? LocaleSettings().effective;
+
   SupabaseClient get _db => Supabase.instance.client;
-  String get _language => LocaleSettings().effective.languageCode;
+  String get _language => effectiveAnswerLanguage.languageCode;
 
   Future<Map<String, dynamic>> _ask(Map<String, dynamic> body) async {
     try {

@@ -1883,6 +1883,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The AI couldn\'t answer this time. Try again; this one didn\'t count.'**
   String get aiFailed;
+
+  /// No description provided for @aiAnswerIn.
+  ///
+  /// In en, this message translates to:
+  /// **'AI language: {language}'**
+  String aiAnswerIn(String language);
 }
 
 class _AppLocalizationsDelegate

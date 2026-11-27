@@ -296,5 +296,6 @@
   "aiDailyLimit": "Du hast die 20 KI-Anfragen für heute verbraucht. Versuch es morgen wieder.",
   "aiBusy": "Die kostenlose KI ist gerade ausgelastet. Versuch es in einer Minute; diese Anfrage zählt nicht.",
   "aiNotSetUp": "Die KI-Hilfe ist noch nicht eingerichtet.",
-  "aiFailed": "Die KI konnte diesmal nicht antworten. Versuch es noch einmal; diese Anfrage zählt nicht."
+  "aiFailed": "Die KI konnte diesmal nicht antworten. Versuch es noch einmal; diese Anfrage zählt nicht.",
+  "aiAnswerIn": "KI-Sprache: {language}"
 }

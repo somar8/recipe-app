@@ -296,5 +296,6 @@
   "aiDailyLimit": "Je hebt de 20 AI-verzoeken van vandaag gebruikt. Probeer het morgen weer.",
   "aiBusy": "De gratis AI is nu druk. Probeer het over een minuut; dit verzoek telde niet mee.",
   "aiNotSetUp": "De AI-hulp is nog niet ingesteld.",
-  "aiFailed": "De AI kon nu geen antwoord geven. Probeer het opnieuw; dit verzoek telde niet mee."
+  "aiFailed": "De AI kon nu geen antwoord geven. Probeer het opnieuw; dit verzoek telde niet mee.",
+  "aiAnswerIn": "AI-taal: {language}"
 }

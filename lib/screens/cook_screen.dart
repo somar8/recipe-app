@@ -6,6 +6,7 @@ import '../services/ai_service.dart';
 import '../services/data_changes.dart';
 import '../services/recipe_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/ai_language_button.dart';
 import '../widgets/app_shell.dart';
 import '../widgets/common.dart';
 import '../widgets/food_art.dart';
@@ -208,20 +209,25 @@ class _CookScreenState extends State<CookScreen> {
                       : l.suggestOtherMeals,
                 ),
               ),
-              ValueListenableBuilder<int?>(
-                valueListenable: AiService().remaining,
-                builder: (context, left, _) => left == null
-                    ? const SizedBox.shrink()
-                    : Padding(
-                        padding: const EdgeInsets.only(top: Gap.sm),
-                        child: Text(
-                          l.aiLeftToday(left),
-                          textAlign: TextAlign.center,
-                          style: t.bodySmall?.copyWith(
-                            color: c.onSurfaceVariant,
+              const SizedBox(height: Gap.xs),
+              Wrap(
+                alignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: Gap.md,
+                children: [
+                  const AiLanguageButton(),
+                  ValueListenableBuilder<int?>(
+                    valueListenable: AiService().remaining,
+                    builder: (context, left, _) => left == null
+                        ? const SizedBox.shrink()
+                        : Text(
+                            l.aiLeftToday(left),
+                            style: t.bodySmall?.copyWith(
+                              color: c.onSurfaceVariant,
+                            ),
                           ),
-                        ),
-                      ),
+                  ),
+                ],
               ),
               if (_error != null) ...[
                 const SizedBox(height: Gap.md),

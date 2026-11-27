@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:recipe_app/demo/demo_backend.dart';
 import 'package:recipe_app/main.dart' show RecipeApp;
 import 'package:recipe_app/models/recipe.dart';
+import 'package:recipe_app/services/ai_service.dart';
 import 'package:recipe_app/services/auth_service.dart';
 import 'package:recipe_app/services/theme_settings.dart';
 import 'package:recipe_app/services/locale_settings.dart';
@@ -411,6 +412,32 @@ void main() {
     );
     expect(find.text('Oven-baked eggs'), findsWidgets);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the AI answers in the app language unless you pick another', (
+    tester,
+  ) async {
+    addTearDown(tester.view.reset);
+    addTearDown(() => AiService().answerLanguage.value = null);
+    await _show(tester, '/cook', _sizes['phone']!);
+    await tester.enterText(find.byType(TextField), 'eggs');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    expect(find.text('AI language: English'), findsOneWidget);
+    await tester.tap(find.text('Suggest meals'));
+    await _waitForAi(tester);
+    expect(_backend.lastAiLanguage, 'en');
+
+    await tester.tap(find.text('AI language: English'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('العربية').last);
+    await tester.pumpAndSettle();
+    expect(find.text('AI language: العربية'), findsOneWidget);
+    await tester.tap(find.text('Suggest other meals'));
+    await _waitForAi(tester);
+    expect(_backend.lastAiLanguage, 'ar');
+    // The app itself stays in English.
+    expect(find.text('What can I cook?'), findsOneWidget);
   });
 
   testWidgets('a used-up daily AI allowance says so', (tester) async {

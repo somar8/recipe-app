@@ -38,11 +38,7 @@ final _destinations = [
     Icons.folder_special_outlined,
     Icons.folder_special,
   ),
-  _Destination(
-    (l) => l.cookTab,
-    Icons.soup_kitchen_outlined,
-    Icons.soup_kitchen,
-  ),
+  _Destination((l) => l.cookTab, Icons.kitchen_outlined, Icons.kitchen),
   _Destination(
     (l) => l.account,
     Icons.person_outline,
