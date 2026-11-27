@@ -987,4 +987,116 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get couldNotRemoveIt => 'Could not remove it. Please try again.';
+
+  @override
+  String get cookTab => 'Cook';
+
+  @override
+  String get whatCanICook => 'What can I cook?';
+
+  @override
+  String get whatCanICookHint =>
+      'Add what you have at home and get three meal ideas. Salt, oil, flour and spices are counted as there.';
+
+  @override
+  String get addWhatYouHave => 'Add what you have';
+
+  @override
+  String get addWhatYouHaveExample => 'eggs, tomatoes, rice';
+
+  @override
+  String get nothingAddedYet =>
+      'Nothing added yet. Type one item, or several separated by commas.';
+
+  @override
+  String removeItem(String item) {
+    return 'Remove $item';
+  }
+
+  @override
+  String get clearAll => 'Clear all';
+
+  @override
+  String get suggestMeals => 'Suggest meals';
+
+  @override
+  String get suggestOtherMeals => 'Suggest other meals';
+
+  @override
+  String get thinkingUpMeals => 'Thinking up meals…';
+
+  @override
+  String get pickAMeal => 'Pick a meal';
+
+  @override
+  String get youHaveEverything => 'You have everything';
+
+  @override
+  String youdNeed(String items) {
+    return 'You\'d need: $items';
+  }
+
+  @override
+  String get youHaveThis => 'You have this';
+
+  @override
+  String get toBuy => 'To buy';
+
+  @override
+  String get saveToMyRecipes => 'Save to my recipes';
+
+  @override
+  String get aiCheckNote =>
+      'Written by AI: check amounts, times and allergens before you cook.';
+
+  @override
+  String get writeStepsWithAi => 'Write the steps with AI';
+
+  @override
+  String get writingSteps => 'Writing steps…';
+
+  @override
+  String get stepsWritten =>
+      'Steps written. Read them through and change anything before saving.';
+
+  @override
+  String get aiNeedsNameAndIngredients =>
+      'Add a recipe name and at least one ingredient first.';
+
+  @override
+  String get replaceStepsQuestion => 'Replace your steps?';
+
+  @override
+  String get replaceStepsMessage =>
+      'The AI writes new steps in place of the ones you have.';
+
+  @override
+  String get replace => 'Replace';
+
+  @override
+  String aiLeftToday(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count AI requests left today',
+      one: '1 AI request left today',
+      zero: 'No AI requests left today',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get aiDailyLimit =>
+      'You\'ve used today\'s 20 AI requests. Try again tomorrow.';
+
+  @override
+  String get aiBusy =>
+      'The free AI is busy right now. Try again in a minute; this one didn\'t count.';
+
+  @override
+  String get aiNotSetUp => 'The AI helper isn\'t set up yet.';
+
+  @override
+  String get aiFailed =>
+      'The AI couldn\'t answer this time. Try again; this one didn\'t count.';
 }

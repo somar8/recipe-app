@@ -1009,4 +1009,116 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get couldNotRemoveIt =>
       'Konnte nicht entfernt werden. Bitte versuche es erneut.';
+
+  @override
+  String get cookTab => 'Kochen';
+
+  @override
+  String get whatCanICook => 'Was kann ich kochen?';
+
+  @override
+  String get whatCanICookHint =>
+      'Füge hinzu, was du zu Hause hast, und bekomme drei Essensideen. Salz, Öl, Mehl und Gewürze zählen als vorhanden.';
+
+  @override
+  String get addWhatYouHave => 'Füge hinzu, was du hast';
+
+  @override
+  String get addWhatYouHaveExample => 'Eier, Tomaten, Reis';
+
+  @override
+  String get nothingAddedYet =>
+      'Noch nichts hinzugefügt. Tippe eine Zutat oder mehrere, durch Kommas getrennt.';
+
+  @override
+  String removeItem(String item) {
+    return '$item entfernen';
+  }
+
+  @override
+  String get clearAll => 'Alles löschen';
+
+  @override
+  String get suggestMeals => 'Gerichte vorschlagen';
+
+  @override
+  String get suggestOtherMeals => 'Andere Gerichte vorschlagen';
+
+  @override
+  String get thinkingUpMeals => 'Gerichte werden ausgedacht…';
+
+  @override
+  String get pickAMeal => 'Wähle ein Gericht';
+
+  @override
+  String get youHaveEverything => 'Du hast alles da';
+
+  @override
+  String youdNeed(String items) {
+    return 'Du brauchst noch: $items';
+  }
+
+  @override
+  String get youHaveThis => 'Hast du da';
+
+  @override
+  String get toBuy => 'Noch kaufen';
+
+  @override
+  String get saveToMyRecipes => 'In meinen Rezepten speichern';
+
+  @override
+  String get aiCheckNote =>
+      'Von KI geschrieben: Prüfe Mengen, Zeiten und Allergene, bevor du kochst.';
+
+  @override
+  String get writeStepsWithAi => 'Schritte mit KI schreiben';
+
+  @override
+  String get writingSteps => 'Schritte werden geschrieben…';
+
+  @override
+  String get stepsWritten =>
+      'Schritte geschrieben. Lies sie durch und ändere, was du willst, bevor du speicherst.';
+
+  @override
+  String get aiNeedsNameAndIngredients =>
+      'Gib zuerst einen Rezeptnamen und mindestens eine Zutat ein.';
+
+  @override
+  String get replaceStepsQuestion => 'Deine Schritte ersetzen?';
+
+  @override
+  String get replaceStepsMessage =>
+      'Die KI schreibt neue Schritte anstelle deiner jetzigen.';
+
+  @override
+  String get replace => 'Ersetzen';
+
+  @override
+  String aiLeftToday(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Heute noch $count KI-Anfragen',
+      one: 'Heute noch 1 KI-Anfrage',
+      zero: 'Heute keine KI-Anfragen mehr',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get aiDailyLimit =>
+      'Du hast die 20 KI-Anfragen für heute verbraucht. Versuch es morgen wieder.';
+
+  @override
+  String get aiBusy =>
+      'Die kostenlose KI ist gerade ausgelastet. Versuch es in einer Minute; diese Anfrage zählt nicht.';
+
+  @override
+  String get aiNotSetUp => 'Die KI-Hilfe ist noch nicht eingerichtet.';
+
+  @override
+  String get aiFailed =>
+      'Die KI konnte diesmal nicht antworten. Versuch es noch einmal; diese Anfrage zählt nicht.';
 }

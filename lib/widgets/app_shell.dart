@@ -39,6 +39,11 @@ final _destinations = [
     Icons.folder_special,
   ),
   _Destination(
+    (l) => l.cookTab,
+    Icons.soup_kitchen_outlined,
+    Icons.soup_kitchen,
+  ),
+  _Destination(
     (l) => l.account,
     Icons.person_outline,
     Icons.person,
@@ -46,7 +51,7 @@ final _destinations = [
   ),
 ];
 
-/// The frame around the three main tabs: a bottom bar on phones, a side rail on
+/// The frame around the four main tabs: a bottom bar on phones, a side rail on
 /// tablets and laptops. Each tab keeps its own history and scroll position.
 class AppShell extends StatefulWidget {
   const AppShell({super.key, required this.shell});

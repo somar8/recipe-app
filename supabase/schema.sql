@@ -821,6 +821,51 @@ drop trigger if exists enforce_account_limits on public.recipe_ingredients;
 create trigger enforce_account_limits before insert on public.recipe_ingredients
   for each row execute function public.enforce_account_limits();
 
+-- ---------- AI helper (Phase 8) ----------
+-- The Edge Function "ai" calls use_ai() with the signed-in person's token before every
+-- AI request: 20 a day per account, confirmed email only. The free AI allowance is
+-- shared by everyone, so one account cannot use it all. Returns how many are left.
+create or replace function public.use_ai()
+returns int
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  me uuid := auth.uid();
+  daily constant int := 20;
+begin
+  if me is null then
+    raise exception 'Sign in first.' using errcode = '42501';
+  end if;
+  if not exists (select 1 from auth.users u where u.id = me and u.email_confirmed_at is not null) then
+    raise exception 'Confirm your email first.' using errcode = '42501';
+  end if;
+  delete from public.rate_events e where e.user_id = me and e.kind = 'ai' and e.at < now() - interval '1 day';
+  if (select count(*) from public.rate_events e where e.user_id = me and e.kind = 'ai') >= daily then
+    raise exception 'You used all AI requests for today.' using errcode = '54000';
+  end if;
+  insert into public.rate_events (user_id, kind) values (me, 'ai');
+  return daily - (select count(*) from public.rate_events e where e.user_id = me and e.kind = 'ai')::int;
+end;
+$$;
+
+-- Gives the last request back when the AI itself failed, so a failure costs nothing.
+create or replace function public.refund_ai()
+returns void
+language sql
+security definer
+set search_path = ''
+as $$
+  delete from public.rate_events e
+  where e.ctid = (select e2.ctid from public.rate_events e2
+                  where e2.user_id = auth.uid() and e2.kind = 'ai' and e2.at > now() - interval '10 minutes'
+                  order by e2.at desc limit 1);
+$$;
+
+revoke execute on function public.use_ai(), public.refund_ai() from public, anon;
+grant execute on function public.use_ai(), public.refund_ai() to authenticated;
+
 -- ---------- Keep-alive ----------
 -- A free Supabase project pauses after about a week without activity.
 -- A daily GitHub Action calls this (it reads no data).

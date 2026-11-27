@@ -11,6 +11,12 @@ class DemoBackend extends http.BaseClient {
     _seed();
   }
 
+  /// AI requests left today in the demo, like the real daily allowance.
+  int aiLeft = 20;
+
+  /// Tests can make the AI fail with this error code ('busy', 'daily_limit', ...).
+  String? aiError;
+
   /// Function names to answer with 404, like a project whose setup is out of date.
   final missingFunctions = <String>{};
 
@@ -379,6 +385,99 @@ class DemoBackend extends http.BaseClient {
     );
   }
 
+  /// Pretend AI: steps that use the recipe's ingredients, and three meals built on
+  /// what you have. Shows the feature without an AI key.
+  (int, Object?) _ai(Map body) {
+    if (aiError != null) {
+      return (aiError == 'daily_limit' ? 429 : 503, {'error': aiError});
+    }
+    if (aiLeft <= 0) return (429, {'error': 'daily_limit'});
+    aiLeft--;
+    if (body['task'] == 'steps') {
+      final recipe = (body['recipe'] as Map?) ?? {};
+      final names = [
+        for (final i in (recipe['ingredients'] as List? ?? const []))
+          (i as Map)['name'] as String,
+      ];
+      final first = names.isEmpty ? 'the ingredients' : names.first;
+      final rest = names.length > 1 ? names.skip(1).join(', ') : 'the rest';
+      return (
+        200,
+        {
+          'steps': [
+            'Get everything ready: weigh the ingredients and heat the pan or oven.',
+            'Start with the $first and cook it gently for a few minutes.',
+            'Add $rest and stir until everything is well mixed.',
+            'Cook until done, then taste and season with salt and pepper.',
+            'Serve warm.',
+          ],
+          'remaining': aiLeft,
+        },
+      );
+    }
+    final have = [for (final h in (body['have'] as List? ?? const [])) '$h'];
+    final main = have.isEmpty ? 'vegetables' : have.first;
+    Map<String, Object?> item(
+      String name,
+      String? qty,
+      String? unit,
+      bool got,
+    ) => {'name': name, 'quantity': qty, 'unit': unit, 'have': got};
+    final yours = [for (final h in have.take(5)) item(h, null, null, true)];
+    return (
+      200,
+      {
+        'ideas': [
+          {
+            'title': 'Quick $main stir-fry',
+            'description':
+                'Ready in twenty minutes, with a little soy and garlic.',
+            'prepMinutes': 10,
+            'cookMinutes': 10,
+            'servings': 2,
+            'ingredients': [...yours, item('Soy sauce', '2', 'tbsp', false)],
+            'steps': [
+              'Cut everything into bite-size pieces.',
+              'Fry in a hot pan with a little oil for 5 minutes.',
+              'Add the soy sauce, stir and serve.',
+            ],
+          },
+          {
+            'title': 'Oven-baked $main',
+            'description': 'Comforting and almost hands-off.',
+            'prepMinutes': 15,
+            'cookMinutes': 35,
+            'servings': 4,
+            'ingredients': [...yours, item('Olive oil', '2', 'tbsp', true)],
+            'steps': [
+              'Heat the oven to 200 °C.',
+              'Toss everything with oil, salt and pepper on a tray.',
+              'Bake for 30 to 35 minutes until golden.',
+            ],
+          },
+          {
+            'title': 'Fresh $main salad',
+            'description': 'Light and crunchy, with a lemon dressing.',
+            'prepMinutes': 10,
+            'cookMinutes': 0,
+            'servings': 2,
+            'ingredients': [
+              ...yours,
+              item('Lemon', '1', null, false),
+              item('Feta', '100', 'g', false),
+            ],
+            'steps': [
+              'Chop everything finely.',
+              'Mix the lemon juice with oil, salt and pepper.',
+              'Toss with the dressing and crumble the feta on top.',
+            ],
+          },
+        ],
+        'remaining': aiLeft,
+      },
+    );
+  }
+
   (int, Object?) _handle(String method, Uri uri, Object? body) {
     final path = uri.path;
     // Tests can pretend the project's database is older and lacks some functions.
@@ -412,6 +511,9 @@ class DemoBackend extends http.BaseClient {
       return (200, _user);
     }
     if (path.endsWith('/auth/v1/logout')) return (204, null);
+
+    // ---- AI helper (the "ai" Edge Function), with made-up answers ----
+    if (path.endsWith('/functions/v1/ai')) return _ai(body as Map);
 
     // ---- Functions ----
     if (path.endsWith('/rpc/ping')) return (200, 'ok');

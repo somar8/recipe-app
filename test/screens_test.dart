@@ -40,6 +40,7 @@ const _screens = [
   '/account',
   '/account/friends',
   '/account/details',
+  '/cook',
   '/recipes/108', // shared by Anna
   '/groups/110', // Anna's shared collection
   '/groups/110/recipes/109',
@@ -73,6 +74,17 @@ Future<void> _show(
 /// Saving the language also updates the (demo) account, which needs a real clock.
 Future<void> _setLanguage(WidgetTester tester, Locale? locale) async {
   await tester.runAsync(() => LocaleSettings().setLanguage(locale));
+}
+
+/// Waits for an AI answer: the functions client encodes JSON on a background isolate,
+/// which needs real time, while the demo's pretend network delay needs test time.
+Future<void> _waitForAi(WidgetTester tester) async {
+  for (var i = 0; i < 10; i++) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 30)),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+  }
 }
 
 void main() {
@@ -167,7 +179,9 @@ void main() {
     await tester.pump();
     await tester.tap(card);
     for (var i = 0; i < 5; i++) {
-      await tester.pump(const Duration(milliseconds: 100)); // the sheet slides up
+      await tester.pump(
+        const Duration(milliseconds: 100),
+      ); // the sheet slides up
     }
     await tester.tap(find.text('Deutsch'));
     for (var i = 0; i < 5; i++) {
@@ -340,6 +354,79 @@ void main() {
     expect(find.widgetWithText(TextField, '1/2'), findsOneWidget);
     expect(find.widgetWithText(TextField, 'tsp'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the AI writes the steps from the ingredients', (tester) async {
+    addTearDown(tester.view.reset);
+    await _show(tester, '/recipes/100/edit', _sizes['phone']!);
+    final button = find.text('Write the steps with AI');
+    await tester.ensureVisible(button);
+    await tester.pump();
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+    // The pancakes already have steps, so it asks first.
+    expect(find.text('Replace your steps?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Replace'));
+    await _waitForAi(tester);
+    final steps = tester
+        .widgetList<TextFormField>(find.byType(TextFormField))
+        .map((f) => f.controller?.text ?? '')
+        .firstWhere((t) => t.contains('Serve warm.'));
+    expect(steps.split('\n'), hasLength(5));
+    expect(steps, contains('Flour'));
+    expect(find.textContaining('AI requests left today'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the Cook tab suggests meals and saves the one you pick', (
+    tester,
+  ) async {
+    addTearDown(tester.view.reset);
+    await _show(tester, '/cook', _sizes['phone']!);
+    expect(find.text('What can I cook?'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'eggs, tomatoes, rice');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    expect(find.byType(InputChip), findsNWidgets(3));
+    await tester.tap(find.text('Suggest meals'));
+    await _waitForAi(tester);
+    expect(find.text('Pick a meal'), findsOneWidget);
+    expect(find.text('Quick eggs stir-fry'), findsOneWidget);
+    expect(find.text("You'd need: Soy sauce"), findsOneWidget);
+    expect(find.text('You have everything'), findsOneWidget);
+
+    await tester.tap(find.text('Oven-baked eggs'));
+    await tester.pumpAndSettle();
+    expect(find.text('Save to my recipes'), findsOneWidget);
+    await tester.tap(find.text('Save to my recipes'));
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+    // Saved, and now open as a normal recipe.
+    expect(
+      GoRouter.of(
+        tester.element(find.byType(Navigator).first),
+      ).routerDelegate.currentConfiguration.uri.path,
+      startsWith('/recipes/'),
+    );
+    expect(find.text('Oven-baked eggs'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a used-up daily AI allowance says so', (tester) async {
+    addTearDown(tester.view.reset);
+    _backend.aiError = 'daily_limit';
+    addTearDown(() => _backend.aiError = null);
+    await _show(tester, '/cook', _sizes['phone']!);
+    await tester.enterText(find.byType(TextField), 'eggs');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    await tester.tap(find.text('Suggest meals'));
+    await _waitForAi(tester);
+    expect(
+      find.text("You've used today's 20 AI requests. Try again tomorrow."),
+      findsOneWidget,
+    );
   });
 
   testWidgets('Your details saves first and last name', (tester) async {

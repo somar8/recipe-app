@@ -578,5 +578,56 @@
   "failedLoadShares": "Failed to load who this is shared with.",
   "couldNotUpdateSharing": "Could not update sharing. Please try again.",
   "shareOnlyOwn": "You can only share your own recipes and collections, and only with friends.",
-  "couldNotRemoveIt": "Could not remove it. Please try again."
+  "couldNotRemoveIt": "Could not remove it. Please try again.",
+  "cookTab": "Cook",
+  "whatCanICook": "What can I cook?",
+  "whatCanICookHint": "Add what you have at home and get three meal ideas. Salt, oil, flour and spices are counted as there.",
+  "addWhatYouHave": "Add what you have",
+  "addWhatYouHaveExample": "eggs, tomatoes, rice",
+  "nothingAddedYet": "Nothing added yet. Type one item, or several separated by commas.",
+  "removeItem": "Remove {item}",
+  "@removeItem": {
+    "placeholders": {
+      "item": {
+        "type": "String"
+      }
+    }
+  },
+  "clearAll": "Clear all",
+  "suggestMeals": "Suggest meals",
+  "suggestOtherMeals": "Suggest other meals",
+  "thinkingUpMeals": "Thinking up meals…",
+  "pickAMeal": "Pick a meal",
+  "youHaveEverything": "You have everything",
+  "youdNeed": "You'd need: {items}",
+  "@youdNeed": {
+    "placeholders": {
+      "items": {
+        "type": "String"
+      }
+    }
+  },
+  "youHaveThis": "You have this",
+  "toBuy": "To buy",
+  "saveToMyRecipes": "Save to my recipes",
+  "aiCheckNote": "Written by AI: check amounts, times and allergens before you cook.",
+  "writeStepsWithAi": "Write the steps with AI",
+  "writingSteps": "Writing steps…",
+  "stepsWritten": "Steps written. Read them through and change anything before saving.",
+  "aiNeedsNameAndIngredients": "Add a recipe name and at least one ingredient first.",
+  "replaceStepsQuestion": "Replace your steps?",
+  "replaceStepsMessage": "The AI writes new steps in place of the ones you have.",
+  "replace": "Replace",
+  "aiLeftToday": "{count, plural, =0{No AI requests left today} =1{1 AI request left today} other{{count} AI requests left today}}",
+  "@aiLeftToday": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "aiDailyLimit": "You've used today's 20 AI requests. Try again tomorrow.",
+  "aiBusy": "The free AI is busy right now. Try again in a minute; this one didn't count.",
+  "aiNotSetUp": "The AI helper isn't set up yet.",
+  "aiFailed": "The AI couldn't answer this time. Try again; this one didn't count."
 }

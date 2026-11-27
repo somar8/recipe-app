@@ -1703,6 +1703,186 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not remove it. Please try again.'**
   String get couldNotRemoveIt;
+
+  /// No description provided for @cookTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Cook'**
+  String get cookTab;
+
+  /// No description provided for @whatCanICook.
+  ///
+  /// In en, this message translates to:
+  /// **'What can I cook?'**
+  String get whatCanICook;
+
+  /// No description provided for @whatCanICookHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add what you have at home and get three meal ideas. Salt, oil, flour and spices are counted as there.'**
+  String get whatCanICookHint;
+
+  /// No description provided for @addWhatYouHave.
+  ///
+  /// In en, this message translates to:
+  /// **'Add what you have'**
+  String get addWhatYouHave;
+
+  /// No description provided for @addWhatYouHaveExample.
+  ///
+  /// In en, this message translates to:
+  /// **'eggs, tomatoes, rice'**
+  String get addWhatYouHaveExample;
+
+  /// No description provided for @nothingAddedYet.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing added yet. Type one item, or several separated by commas.'**
+  String get nothingAddedYet;
+
+  /// No description provided for @removeItem.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {item}'**
+  String removeItem(String item);
+
+  /// No description provided for @clearAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all'**
+  String get clearAll;
+
+  /// No description provided for @suggestMeals.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggest meals'**
+  String get suggestMeals;
+
+  /// No description provided for @suggestOtherMeals.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggest other meals'**
+  String get suggestOtherMeals;
+
+  /// No description provided for @thinkingUpMeals.
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking up meals…'**
+  String get thinkingUpMeals;
+
+  /// No description provided for @pickAMeal.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a meal'**
+  String get pickAMeal;
+
+  /// No description provided for @youHaveEverything.
+  ///
+  /// In en, this message translates to:
+  /// **'You have everything'**
+  String get youHaveEverything;
+
+  /// No description provided for @youdNeed.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'d need: {items}'**
+  String youdNeed(String items);
+
+  /// No description provided for @youHaveThis.
+  ///
+  /// In en, this message translates to:
+  /// **'You have this'**
+  String get youHaveThis;
+
+  /// No description provided for @toBuy.
+  ///
+  /// In en, this message translates to:
+  /// **'To buy'**
+  String get toBuy;
+
+  /// No description provided for @saveToMyRecipes.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to my recipes'**
+  String get saveToMyRecipes;
+
+  /// No description provided for @aiCheckNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Written by AI: check amounts, times and allergens before you cook.'**
+  String get aiCheckNote;
+
+  /// No description provided for @writeStepsWithAi.
+  ///
+  /// In en, this message translates to:
+  /// **'Write the steps with AI'**
+  String get writeStepsWithAi;
+
+  /// No description provided for @writingSteps.
+  ///
+  /// In en, this message translates to:
+  /// **'Writing steps…'**
+  String get writingSteps;
+
+  /// No description provided for @stepsWritten.
+  ///
+  /// In en, this message translates to:
+  /// **'Steps written. Read them through and change anything before saving.'**
+  String get stepsWritten;
+
+  /// No description provided for @aiNeedsNameAndIngredients.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a recipe name and at least one ingredient first.'**
+  String get aiNeedsNameAndIngredients;
+
+  /// No description provided for @replaceStepsQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace your steps?'**
+  String get replaceStepsQuestion;
+
+  /// No description provided for @replaceStepsMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI writes new steps in place of the ones you have.'**
+  String get replaceStepsMessage;
+
+  /// No description provided for @replace.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace'**
+  String get replace;
+
+  /// No description provided for @aiLeftToday.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No AI requests left today} =1{1 AI request left today} other{{count} AI requests left today}}'**
+  String aiLeftToday(int count);
+
+  /// No description provided for @aiDailyLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ve used today\'s 20 AI requests. Try again tomorrow.'**
+  String get aiDailyLimit;
+
+  /// No description provided for @aiBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'The free AI is busy right now. Try again in a minute; this one didn\'t count.'**
+  String get aiBusy;
+
+  /// No description provided for @aiNotSetUp.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI helper isn\'t set up yet.'**
+  String get aiNotSetUp;
+
+  /// No description provided for @aiFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI couldn\'t answer this time. Try again; this one didn\'t count.'**
+  String get aiFailed;
 }
 
 class _AppLocalizationsDelegate

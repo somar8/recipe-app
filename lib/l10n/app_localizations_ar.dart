@@ -1009,4 +1009,118 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get couldNotRemoveIt => 'تعذّرت الإزالة. حاول مرة أخرى.';
+
+  @override
+  String get cookTab => 'اطبخ';
+
+  @override
+  String get whatCanICook => 'ماذا أطبخ؟';
+
+  @override
+  String get whatCanICookHint =>
+      'أضف ما لديك في البيت واحصل على ثلاث أفكار لوجبات. الملح والزيت والطحين والبهارات محسوبة.';
+
+  @override
+  String get addWhatYouHave => 'أضف ما لديك';
+
+  @override
+  String get addWhatYouHaveExample => 'بيض، طماطم، أرز';
+
+  @override
+  String get nothingAddedYet =>
+      'لم تُضف شيئًا بعد. اكتب عنصرًا واحدًا أو عدة عناصر مفصولة بفواصل.';
+
+  @override
+  String removeItem(String item) {
+    return 'إزالة $item';
+  }
+
+  @override
+  String get clearAll => 'مسح الكل';
+
+  @override
+  String get suggestMeals => 'اقترح وجبات';
+
+  @override
+  String get suggestOtherMeals => 'اقترح وجبات أخرى';
+
+  @override
+  String get thinkingUpMeals => 'جارٍ التفكير في وجبات…';
+
+  @override
+  String get pickAMeal => 'اختر وجبة';
+
+  @override
+  String get youHaveEverything => 'لديك كل شيء';
+
+  @override
+  String youdNeed(String items) {
+    return 'ستحتاج إلى: $items';
+  }
+
+  @override
+  String get youHaveThis => 'متوفر لديك';
+
+  @override
+  String get toBuy => 'للشراء';
+
+  @override
+  String get saveToMyRecipes => 'حفظ في وصفاتي';
+
+  @override
+  String get aiCheckNote =>
+      'كُتبت بالذكاء الاصطناعي: تحقّق من الكميات والأوقات ومسببات الحساسية قبل الطهي.';
+
+  @override
+  String get writeStepsWithAi => 'اكتب الخطوات بالذكاء الاصطناعي';
+
+  @override
+  String get writingSteps => 'جارٍ كتابة الخطوات…';
+
+  @override
+  String get stepsWritten => 'كُتبت الخطوات. اقرأها وعدّل ما تريد قبل الحفظ.';
+
+  @override
+  String get aiNeedsNameAndIngredients =>
+      'أضف اسم الوصفة ومكوّنًا واحدًا على الأقل أولًا.';
+
+  @override
+  String get replaceStepsQuestion => 'استبدال خطواتك؟';
+
+  @override
+  String get replaceStepsMessage =>
+      'سيكتب الذكاء الاصطناعي خطوات جديدة بدلًا من خطواتك الحالية.';
+
+  @override
+  String get replace => 'استبدال';
+
+  @override
+  String aiLeftToday(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'بقي $count طلب اليوم',
+      many: 'بقي $count طلبًا اليوم',
+      few: 'بقيت $count طلبات اليوم',
+      two: 'بقي طلبان اليوم',
+      one: 'بقي طلب واحد اليوم',
+      zero: 'لا طلبات ذكاء اصطناعي متبقية اليوم',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get aiDailyLimit =>
+      'استخدمت طلبات الذكاء الاصطناعي العشرين لهذا اليوم. حاول مرة أخرى غدًا.';
+
+  @override
+  String get aiBusy =>
+      'الذكاء الاصطناعي المجاني مشغول الآن. حاول بعد دقيقة؛ لم يُحتسب هذا الطلب.';
+
+  @override
+  String get aiNotSetUp => 'لم يتم إعداد مساعد الذكاء الاصطناعي بعد.';
+
+  @override
+  String get aiFailed =>
+      'لم يتمكن الذكاء الاصطناعي من الإجابة هذه المرة. حاول مرة أخرى؛ لم يُحتسب هذا الطلب.';
 }

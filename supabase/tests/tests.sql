@@ -462,3 +462,42 @@ select pg_temp.check((select display_name = 'Lina' from public.recipe_profiles w
   'a first name alone works, and changes show at once');
 select pg_temp.check(public.display_name_of('{"username":"Old Name"}', 'x@y.z') = 'Old Name'
   and public.display_name_of('{}', 'sam@y.z') = 'sam', 'older accounts keep their name, or fall back to the email');
+
+-- =====================================================================
+-- AI requests (Phase 8)
+-- =====================================================================
+reset role;
+insert into auth.users (id, email, email_confirmed_at) values
+  ('d0000000-0000-0000-0000-000000000001', 'ai.user@example.com', now()),
+  ('d0000000-0000-0000-0000-000000000002', 'ai.unconfirmed@example.com', null);
+select pg_temp.act_as('d0000000-0000-0000-0000-000000000001', 'ai.user@example.com');
+set role authenticated;
+select pg_temp.check(public.use_ai() = 19, 'the first AI request leaves 19 for today');
+select public.refund_ai();
+select pg_temp.check(public.use_ai() = 19, 'a failed AI request is given back');
+select pg_temp.check((select min(public.use_ai()) from generate_series(1, 19)) = 0, '20 AI requests a day are allowed');
+do $$ begin
+  perform public.use_ai();
+  perform pg_temp.check(false, 'the 21st AI request in a day is refused');
+exception when program_limit_exceeded then perform pg_temp.check(true, 'the 21st AI request in a day is refused'); end $$;
+reset role;
+update public.rate_events set at = now() - interval '25 hours' where user_id = 'd0000000-0000-0000-0000-000000000001';
+set role authenticated;
+select pg_temp.check(public.use_ai() = 19, 'the limit resets after a day');
+select pg_temp.act_as('d0000000-0000-0000-0000-000000000002', 'ai.unconfirmed@example.com');
+do $$ begin
+  perform public.use_ai();
+  perform pg_temp.check(false, 'an unconfirmed email cannot use the AI');
+exception when insufficient_privilege then perform pg_temp.check(true, 'an unconfirmed email cannot use the AI'); end $$;
+select public.refund_ai();
+reset role;
+select pg_temp.check((select count(*) = 1 from public.rate_events where user_id = 'd0000000-0000-0000-0000-000000000001'
+  and kind = 'ai'), 'someone else cannot give back another person''s requests');
+select set_config('request.jwt.claim.sub', '', false);
+set role anon;
+do $$ begin
+  perform public.use_ai();
+  perform pg_temp.check(false, 'signed-out visitors cannot use the AI');
+exception when insufficient_privilege then perform pg_temp.check(true, 'signed-out visitors cannot use the AI'); end $$;
+reset role;
+

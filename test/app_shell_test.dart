@@ -12,7 +12,7 @@ GoRouter _router() => GoRouter(
     StatefulShellRoute.indexedStack(
       builder: (_, _, shell) => AppShell(shell: shell),
       branches: [
-        for (final path in ['/recipes', '/groups', '/account'])
+        for (final path in ['/recipes', '/groups', '/cook', '/account'])
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -42,7 +42,7 @@ Future<void> _pump(WidgetTester tester, Size size) async {
 }
 
 void main() {
-  testWidgets('a phone gets a bottom bar with three tabs', (tester) async {
+  testWidgets('a phone gets a bottom bar with four tabs', (tester) async {
     await _pump(tester, const Size(375, 812));
     expect(find.byType(NavigationBar), findsOneWidget);
     expect(find.byType(NavigationRail), findsNothing);
@@ -51,6 +51,10 @@ void main() {
     await tester.tap(find.text('Collections'));
     await tester.pumpAndSettle();
     expect(find.text('page /groups'), findsOneWidget);
+
+    await tester.tap(find.text('Cook'));
+    await tester.pumpAndSettle();
+    expect(find.text('page /cook'), findsOneWidget);
   });
 
   testWidgets('a tablet gets a side rail', (tester) async {

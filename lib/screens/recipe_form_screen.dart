@@ -3,6 +3,7 @@ import '../l10n/l10n.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../models/recipe.dart';
+import '../services/ai_service.dart';
 import '../services/recipe_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_shell.dart';
@@ -60,6 +61,7 @@ class _RecipeFormScreenState extends State<RecipeFormScreen> {
   /// (saving that would overwrite the real item with blanks).
   bool _loadFailed = false;
   bool _saving = false;
+  bool _writingSteps = false;
   String? _error;
   String _savedSnapshot = ''; // set in initState (new) or after loading (edit)
 
@@ -169,6 +171,53 @@ class _RecipeFormScreenState extends State<RecipeFormScreen> {
       _ingredients.addAll(found.map(_IngredientFields.new));
     });
     showMessage(context, context.l10n.addedIngredients(found.length));
+  }
+
+  /// Asks the AI to write the steps from the name, ingredients and times.
+  Future<void> _writeSteps() async {
+    final l = context.l10n;
+    final ingredients = [
+      for (final i in _ingredients.where((i) => !i.isEmpty))
+        RecipeIngredient(
+          name: i.name.text.trim(),
+          quantity: i.quantity.text.trim(),
+          unit: i.unit.text.trim(),
+        ),
+    ];
+    if (_title.text.trim().isEmpty || ingredients.isEmpty) {
+      showMessage(context, l.aiNeedsNameAndIngredients);
+      return;
+    }
+    if (_instructions.text.trim().isNotEmpty &&
+        !await confirmDialog(
+          context,
+          title: l.replaceStepsQuestion,
+          message: l.replaceStepsMessage,
+          confirmLabel: l.replace,
+        )) {
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _writingSteps = true);
+    try {
+      final steps = await AiService().writeSteps(
+        Recipe(
+          title: _title.text.trim(),
+          description: _description.text.trim(),
+          prepTimeMinutes: int.tryParse(_prep.text),
+          cookTimeMinutes: int.tryParse(_cook.text),
+          servings: int.tryParse(_servings.text),
+          ingredients: ingredients,
+        ),
+      );
+      if (!mounted) return;
+      _instructions.text = steps.join('\n');
+      showMessage(context, l.stepsWritten);
+    } catch (e) {
+      if (mounted) showMessage(context, errorText(e));
+    } finally {
+      if (mounted) setState(() => _writingSteps = false);
+    }
   }
 
   void _removeIngredient(int index) {
@@ -516,6 +565,8 @@ class _RecipeFormScreenState extends State<RecipeFormScreen> {
         ),
 
         SectionHeader(title: context.l10n.steps),
+        _AiStepsButton(busy: _writingSteps, onPressed: _writeSteps),
+        const SizedBox(height: Gap.md),
         TextFormField(
           controller: _instructions,
           minLines: 6,
@@ -527,6 +578,49 @@ class _RecipeFormScreenState extends State<RecipeFormScreen> {
             helperText: context.l10n.stepsHelper,
             alignLabelWithHint: true,
           ),
+        ),
+      ],
+    );
+  }
+}
+
+/// "Write the steps with AI", with how many AI requests are left today.
+class _AiStepsButton extends StatelessWidget {
+  const _AiStepsButton({required this.busy, required this.onPressed});
+
+  final bool busy;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    final t = Theme.of(context).textTheme;
+    final c = Theme.of(context).colorScheme;
+    // Wraps under the button when there is no room (large text, narrow phones).
+    return Wrap(
+      spacing: Gap.md,
+      runSpacing: Gap.xs,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        FilledButton.tonalIcon(
+          onPressed: busy ? null : onPressed,
+          icon: busy
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.auto_awesome),
+          label: Text(busy ? l.writingSteps : l.writeStepsWithAi),
+        ),
+        ValueListenableBuilder<int?>(
+          valueListenable: AiService().remaining,
+          builder: (context, left, _) => left == null
+              ? const SizedBox.shrink()
+              : Text(
+                  l.aiLeftToday(left),
+                  style: t.bodySmall?.copyWith(color: c.onSurfaceVariant),
+                ),
         ),
       ],
     );

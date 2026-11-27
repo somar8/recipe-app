@@ -994,4 +994,116 @@ class AppLocalizationsNl extends AppLocalizations {
   @override
   String get couldNotRemoveIt =>
       'Kon het niet verwijderen. Probeer het opnieuw.';
+
+  @override
+  String get cookTab => 'Koken';
+
+  @override
+  String get whatCanICook => 'Wat kan ik koken?';
+
+  @override
+  String get whatCanICookHint =>
+      'Voeg toe wat je in huis hebt en krijg drie maaltijdideeën. Zout, olie, bloem en kruiden tellen als aanwezig.';
+
+  @override
+  String get addWhatYouHave => 'Voeg toe wat je hebt';
+
+  @override
+  String get addWhatYouHaveExample => 'eieren, tomaten, rijst';
+
+  @override
+  String get nothingAddedYet =>
+      'Nog niets toegevoegd. Typ één ding, of meerdere gescheiden door komma\'s.';
+
+  @override
+  String removeItem(String item) {
+    return '$item verwijderen';
+  }
+
+  @override
+  String get clearAll => 'Alles wissen';
+
+  @override
+  String get suggestMeals => 'Stel maaltijden voor';
+
+  @override
+  String get suggestOtherMeals => 'Andere maaltijden';
+
+  @override
+  String get thinkingUpMeals => 'Maaltijden bedenken…';
+
+  @override
+  String get pickAMeal => 'Kies een maaltijd';
+
+  @override
+  String get youHaveEverything => 'Je hebt alles in huis';
+
+  @override
+  String youdNeed(String items) {
+    return 'Nog nodig: $items';
+  }
+
+  @override
+  String get youHaveThis => 'Heb je in huis';
+
+  @override
+  String get toBuy => 'Nog kopen';
+
+  @override
+  String get saveToMyRecipes => 'Bewaar in mijn recepten';
+
+  @override
+  String get aiCheckNote =>
+      'Geschreven door AI: controleer hoeveelheden, tijden en allergenen voor je gaat koken.';
+
+  @override
+  String get writeStepsWithAi => 'Schrijf de stappen met AI';
+
+  @override
+  String get writingSteps => 'Stappen schrijven…';
+
+  @override
+  String get stepsWritten =>
+      'Stappen geschreven. Lees ze na en pas aan wat je wilt voor je opslaat.';
+
+  @override
+  String get aiNeedsNameAndIngredients =>
+      'Voeg eerst een receptnaam en minstens één ingrediënt toe.';
+
+  @override
+  String get replaceStepsQuestion => 'Je stappen vervangen?';
+
+  @override
+  String get replaceStepsMessage =>
+      'De AI schrijft nieuwe stappen in plaats van die je nu hebt.';
+
+  @override
+  String get replace => 'Vervangen';
+
+  @override
+  String aiLeftToday(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Nog $count AI-verzoeken vandaag',
+      one: 'Nog 1 AI-verzoek vandaag',
+      zero: 'Vandaag geen AI-verzoeken meer',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get aiDailyLimit =>
+      'Je hebt de 20 AI-verzoeken van vandaag gebruikt. Probeer het morgen weer.';
+
+  @override
+  String get aiBusy =>
+      'De gratis AI is nu druk. Probeer het over een minuut; dit verzoek telde niet mee.';
+
+  @override
+  String get aiNotSetUp => 'De AI-hulp is nog niet ingesteld.';
+
+  @override
+  String get aiFailed =>
+      'De AI kon nu geen antwoord geven. Probeer het opnieuw; dit verzoek telde niet mee.';
 }

@@ -22,6 +22,7 @@ import 'screens/recipe_form_screen.dart';
 import 'screens/group_list_screen.dart';
 import 'screens/group_detail_screen.dart';
 import 'screens/group_form_screen.dart';
+import 'screens/cook_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -101,7 +102,7 @@ final _router = GoRouter(
       ),
     ),
 
-    // The three tabs. Each keeps its own history and scroll position.
+    // The four tabs. Each keeps its own history and scroll position.
     StatefulShellRoute.indexedStack(
       builder: (_, _, shell) => AppShell(shell: shell),
       branches: [
@@ -144,6 +145,11 @@ final _router = GoRouter(
                 ),
               ],
             ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(path: '/cook', builder: (_, _) => const CookScreen()),
           ],
         ),
         StatefulShellBranch(
